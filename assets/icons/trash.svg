@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Trash">
+  <path d="M18 22h28l-3 32H21L18 22Z" fill="#22a06b"/>
+  <path d="M24 14h16l3 8H21l3-8Z" fill="#74d5a8"/>
+  <path d="M20 22h24" fill="none" stroke="#0f6b45" stroke-width="4" stroke-linecap="round"/>
+  <path d="M27 30v16M37 30v16" fill="none" stroke="#dff8ec" stroke-width="4" stroke-linecap="round"/>
+</svg>

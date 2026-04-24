@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Obstacle">
+  <path d="M14 44 23 20h18l9 24-8 8H22l-8-8Z" fill="#313846"/>
+  <path d="M23 20h18l5 14H18l5-14Z" fill="#566173"/>
+  <path d="M22 52h20" fill="none" stroke="#1d2733" stroke-width="4" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleanerBot AI Simulator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="map-section" aria-label="Simulation map">
+      <div class="section-header">
+        <div>
+          <h1>CleanerBot Simulator</h1>
+          <p>Skeleton project cho robot hut bui va cac thuat toan tim kiem.</p>
+          <p id="moduleWarning" class="module-warning">
+            JavaScript module chua chay. Hay mo bang Live Server thay vi mo truc tiep file HTML.
+          </p>
+        </div>
+        <div id="statusBadge" class="status-badge">Ready</div>
+      </div>
+
+      <div id="gridMap" class="grid-map" aria-label="Grid map"></div>
+
+      <div class="legend" aria-label="Map legend">
+        <span><i class="legend-box robot"></i>Robot</span>
+        <span><i class="legend-box trash"></i>Trash</span>
+        <span><i class="legend-box obstacle"></i>Obstacle</span>
+        <span><i class="legend-box charger"></i>Charge</span>
+        <span><i class="legend-box trash-can"></i>Trash can</span>
+      </div>
+    </section>
+
+    <aside class="control-panel" aria-label="Controls">
+      <section class="panel-block">
+        <h2>Controls</h2>
+
+        <label for="algorithmSelect">Algorithm</label>
+        <select id="algorithmSelect"></select>
+
+        <div class="settings-grid">
+          <label>
+            Map width
+            <input id="mapWidthInput" type="number" min="4" max="20" value="8">
+          </label>
+          <label>
+            Map height
+            <input id="mapHeightInput" type="number" min="4" max="20" value="8">
+          </label>
+          <label>
+            Trash
+            <input id="trashCountInput" type="number" min="0" max="40" value="4">
+          </label>
+          <label>
+            Obstacles
+            <input id="obstacleCountInput" type="number" min="0" max="80" value="5">
+          </label>
+          <label>
+            Max capacity
+            <input id="maxCapacityInput" type="number" min="1" max="20" value="5">
+          </label>
+          <label>
+            Battery loss
+            <input id="batteryLossInput" type="number" min="0" max="100" step="0.5" value="1">
+          </label>
+        </div>
+
+        <div class="button-grid">
+          <button id="generateButton" type="button">Generate map</button>
+          <button id="resetButton" type="button">Reset map</button>
+          <button id="stepButton" type="button">Step</button>
+          <button id="nextStepButton" type="button">Next Step</button>
+          <button id="runButton" type="button">Run</button>
+          <button id="stopButton" type="button">Stop</button>
+        </div>
+
+        <div class="speed-controls" aria-label="Run speed">
+          <span>Speed</span>
+          <button class="speed-button active" type="button" data-speed="1">1x</button>
+          <button class="speed-button" type="button" data-speed="2">2x</button>
+          <button class="speed-button" type="button" data-speed="3">3x</button>
+          <button class="speed-button" type="button" data-speed="5">5x</button>
+        </div>
+      </section>
+
+      <section class="panel-block">
+        <h2>Map Editor</h2>
+
+        <label for="editToolSelect">Edit tool</label>
+        <select id="editToolSelect">
+          <option value="inspect">Inspect</option>
+          <option value="empty">Empty</option>
+          <option value="trash">Trash</option>
+          <option value="obstacle">Obstacle</option>
+          <option value="charger">Charging station</option>
+          <option value="trash_can">Trash can</option>
+          <option value="robot_start">Robot start</option>
+        </select>
+      </section>
+
+      <section class="panel-block">
+        <h2>Robot State</h2>
+        <dl class="stats-list">
+          <div>
+            <dt>Battery</dt>
+            <dd id="batteryValue">-</dd>
+          </div>
+          <div>
+            <dt>Capacity</dt>
+            <dd id="capacityValue">-</dd>
+          </div>
+          <div>
+            <dt>Robot position</dt>
+            <dd id="positionValue">-</dd>
+          </div>
+          <div>
+            <dt>Done</dt>
+            <dd id="doneValue">-</dd>
+          </div>
+          <div>
+            <dt>Steps</dt>
+            <dd id="stepsValue">-</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="panel-block">
+        <h2>Action</h2>
+        <dl class="stats-list">
+          <div>
+            <dt>Latest action</dt>
+            <dd id="latestActionValue">-</dd>
+          </div>
+          <div>
+            <dt>Next action</dt>
+            <dd id="nextActionValue">-</dd>
+          </div>
+        </dl>
+        <p id="latestLog" class="latest-log">No action yet.</p>
+      </section>
+    </aside>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
