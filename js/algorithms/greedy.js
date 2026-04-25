@@ -2,9 +2,6 @@ import { ACTIONS } from "../models.js";
 import { samePosition } from "../environment.js";
 import { BaseAlgorithm } from "./baseAlgorithm.js";
 
-const DEFAULT_MAX_BATTERY = 100;
-const DEFAULT_BATTERY_LOSS = 1;
-
 export class GreedyAlgorithm extends BaseAlgorithm {
   constructor() {
     super();
@@ -19,8 +16,10 @@ export class GreedyAlgorithm extends BaseAlgorithm {
   nextAction(state) {
     const { robot, map } = state;
 
-    if (samePosition(robot, map.trashCan) && robot.capacity > 0) {
-      return ACTIONS.LET_TRASH_OUT;
+    if (this.isAtTrashCan(state) && robot.capacity > 0) {
+      return this.hasEnoughBatteryForTarget(state, map.trashCan)
+        ? ACTIONS.LET_TRASH_OUT
+        : this.getChargingAction(state);
     }
 
     if (this.isAtChargingStation(state) && this.shouldCharge(state)) {
@@ -28,17 +27,32 @@ export class GreedyAlgorithm extends BaseAlgorithm {
     }
 
     if (this.hasTrashAtRobot(state) && robot.capacity < robot.maxCapacity) {
-      return ACTIONS.SUCK_TRASH;
+      return this.hasEnoughBatteryForTarget(state, robot)
+        ? ACTIONS.SUCK_TRASH
+        : this.getChargingAction(state);
     }
 
     let target = this.chooseWorkTarget(state);
 
-    if (target && !samePosition(target, map.chargingStation) && !this.hasEnoughBatteryForTarget(state, target)) {
+    if (
+      target &&
+      !samePosition(target, map.chargingStation) &&
+      !this.hasEnoughBatteryForTarget(state, target) &&
+      this.canFullBatteryHandleTarget(state, target)
+    ) {
       target = map.chargingStation;
     }
 
+    if (
+      target &&
+      !samePosition(target, map.chargingStation) &&
+      !this.hasEnoughBatteryForTarget(state, target)
+    ) {
+      return this.getChargingAction(state);
+    }
+
     if (!target) {
-      return ACTIONS.STAY;
+      return this.getChargingAction(state);
     }
 
     if (samePosition(robot, target)) {
@@ -52,15 +66,44 @@ export class GreedyAlgorithm extends BaseAlgorithm {
     return this.chooseMoveTowardTarget(state, target);
   }
 
+  getChargingAction(state) {
+    const { robot, map } = state;
+
+    if (this.isAtChargingStation(state)) {
+      return robot.battery < this.getMaxBattery(state)
+        ? ACTIONS.CHARGE
+        : ACTIONS.STAY;
+    }
+
+    if (
+      this.hasEnoughBatteryForTrip(
+        state,
+        robot,
+        map.chargingStation,
+        robot.battery
+      )
+    ) {
+      return this.chooseMoveTowardTarget(state, map.chargingStation);
+    }
+
+    return ACTIONS.STAY;
+  }
+
   chooseWorkTarget(state) {
     const { robot, map } = state;
 
     if (robot.capacity >= robot.maxCapacity || (map.trashPositions.length === 0 && robot.capacity > 0)) {
-      return map.trashCan;
+      return this.canFullBatteryHandleTarget(state, map.trashCan)
+        ? map.trashCan
+        : null;
     }
 
     if (map.trashPositions.length > 0) {
-      return this.findNearestPosition(robot, map.trashPositions);
+      const manageableTrashPositions = map.trashPositions.filter((trash) =>
+        this.canFullBatteryHandleTarget(state, trash)
+      );
+
+      return this.findNearestPosition(robot, manageableTrashPositions);
     }
 
     return null;
@@ -73,11 +116,19 @@ export class GreedyAlgorithm extends BaseAlgorithm {
       return ACTIONS.CHARGE;
     }
 
-    if (samePosition(target, map.trashCan) && robot.capacity > 0) {
+    if (
+      samePosition(target, map.trashCan) &&
+      robot.capacity > 0 &&
+      this.hasEnoughBatteryForTarget(state, target)
+    ) {
       return ACTIONS.LET_TRASH_OUT;
     }
 
-    if (this.hasTrashAtRobot(state) && robot.capacity < robot.maxCapacity) {
+    if (
+      this.hasTrashAtRobot(state) &&
+      robot.capacity < robot.maxCapacity &&
+      this.hasEnoughBatteryForTarget(state, target)
+    ) {
       return ACTIONS.SUCK_TRASH;
     }
 
@@ -102,97 +153,68 @@ export class GreedyAlgorithm extends BaseAlgorithm {
   }
 
   hasEnoughBatteryForTarget(state, target) {
+    const { robot } = state;
+    return this.hasEnoughBatteryForTrip(state, robot, target, robot.battery);
+  }
+
+  canFullBatteryHandleTarget(state, target) {
+    const { map } = state;
+    return this.hasEnoughBatteryForTrip(
+      state,
+      map.chargingStation,
+      target,
+      this.getMaxBattery(state)
+    );
+  }
+
+  hasEnoughBatteryForTrip(state, fromPosition, target, battery) {
+    return battery >= this.getRequiredBatteryForTarget(state, fromPosition, target);
+  }
+
+  getRequiredBatteryForTarget(state, fromPosition, target) {
     const { robot, map } = state;
     const batteryLoss = this.getBatteryLoss(state);
+    const actionCost = this.getActionCost(state);
 
-    if (batteryLoss === 0) {
-      return true;
+    let requiredBattery =
+      this.manhattanDistance(fromPosition, target) * batteryLoss;
+
+    if (samePosition(target, map.chargingStation)) {
+      return requiredBattery;
     }
 
-    const distanceToTarget = this.manhattanDistance(robot, target);
-    let safeExitDistance = this.manhattanDistance(target, map.chargingStation);
-
-    if (samePosition(target, map.trashCan)) {
-      safeExitDistance = this.manhattanDistance(target, map.chargingStation);
+    if (samePosition(target, map.trashCan) && robot.capacity > 0) {
+      requiredBattery += actionCost;
+      requiredBattery +=
+        this.manhattanDistance(target, map.chargingStation) * batteryLoss;
+      return requiredBattery;
     }
 
-    if (map.trashPositions.some((trash) => samePosition(trash, target))) {
+    if (
+      map.trashPositions.some((trash) => samePosition(trash, target)) &&
+      robot.capacity < robot.maxCapacity
+    ) {
+      requiredBattery += actionCost;
+
       const willBeFull = robot.capacity + 1 >= robot.maxCapacity;
-      safeExitDistance = willBeFull
-        ? this.manhattanDistance(target, map.trashCan)
-        : this.manhattanDistance(target, map.chargingStation);
+
+      if (willBeFull) {
+        requiredBattery +=
+          this.manhattanDistance(target, map.trashCan) * batteryLoss;
+        requiredBattery += actionCost;
+        requiredBattery +=
+          this.manhattanDistance(map.trashCan, map.chargingStation) *
+          batteryLoss;
+      } else {
+        requiredBattery +=
+          this.manhattanDistance(target, map.chargingStation) * batteryLoss;
+      }
+
+      return requiredBattery;
     }
 
-    const requiredBattery = (distanceToTarget + safeExitDistance) * batteryLoss;
-    return robot.battery >= requiredBattery;
-  }
-
-  findNearestPosition(robot, positions) {
-    return positions.reduce((nearest, current) => {
-      const nearestDistance = this.manhattanDistance(robot, nearest);
-      const currentDistance = this.manhattanDistance(robot, current);
-      return currentDistance < nearestDistance ? current : nearest;
-    });
-  }
-
-  chooseMoveTowardTarget(state, target) {
-    const { robot } = state;
-    const candidates = this.getMoveCandidates(robot);
-
-    candidates.sort((a, b) => {
-      return this.manhattanDistance(a.position, target) - this.manhattanDistance(b.position, target);
-    });
-
-    const bestMove = candidates.find((candidate) => this.canMoveTo(state, candidate.position));
-
-    if (bestMove) {
-      return bestMove.action;
-    }
-
-    return ACTIONS.STAY;
-  }
-
-  getMoveCandidates(robot) {
-    return [
-      { action: ACTIONS.UP, position: { x: robot.x, y: robot.y - 1 } },
-      { action: ACTIONS.DOWN, position: { x: robot.x, y: robot.y + 1 } },
-      { action: ACTIONS.LEFT, position: { x: robot.x - 1, y: robot.y } },
-      { action: ACTIONS.RIGHT, position: { x: robot.x + 1, y: robot.y } },
-    ];
-  }
-
-  canMoveTo(state, position) {
-    const { map } = state;
-    const insideMap = position.x >= 0
-      && position.y >= 0
-      && position.x < map.grid_size_x
-      && position.y < map.grid_size_y;
-
-    if (!insideMap) {
-      return false;
-    }
-
-    return !map.obstaclePositions.some((obstacle) => samePosition(obstacle, position));
-  }
-
-  hasTrashAtRobot(state) {
-    const { robot, map } = state;
-    return map.trashPositions.some((trash) => samePosition(robot, trash));
-  }
-
-  isAtChargingStation(state) {
-    return samePosition(state.robot, state.map.chargingStation);
-  }
-
-  getMaxBattery(state) {
-    return state.config?.maxBattery ?? DEFAULT_MAX_BATTERY;
-  }
-
-  getBatteryLoss(state) {
-    return state.config?.batteryLoss ?? DEFAULT_BATTERY_LOSS;
-  }
-
-  manhattanDistance(a, b) {
-    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    requiredBattery +=
+      this.manhattanDistance(target, map.chargingStation) * batteryLoss;
+    return requiredBattery;
   }
 }

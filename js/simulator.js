@@ -8,6 +8,9 @@ export class Simulator {
     this.speedMultiplier = 1;
     this.intervalId = null;
     this.cachedNextAction = undefined;
+    this.previousStates = [];
+    this.positionHistory = [];
+    this.resetPositionHistory(this.environment.getState());
   }
 
   setAlgorithm(algorithm) {
@@ -15,13 +18,27 @@ export class Simulator {
     this.algorithm = algorithm;
     this.algorithm.reset();
     this.clearNextActionCache();
+    this.clearHistory();
+    this.resetPositionHistory(this.environment.getState());
   }
 
   generate(config) {
     this.stop();
     this.algorithm.reset();
     this.clearNextActionCache();
+    this.clearHistory();
     const state = this.environment.generate(config);
+    this.resetPositionHistory(state);
+    this.onStateChange(state);
+  }
+
+  updateConfig(config) {
+    this.stop();
+    this.algorithm.reset();
+    this.clearNextActionCache();
+    this.clearHistory();
+    const state = this.environment.updateConfig(config);
+    this.resetPositionHistory(state);
     this.onStateChange(state);
   }
 
@@ -29,20 +46,42 @@ export class Simulator {
     this.stop();
     this.algorithm.reset();
     this.clearNextActionCache();
+    this.clearHistory();
     const state = this.environment.reset();
+    this.resetPositionHistory(state);
     this.onStateChange(state);
   }
 
   step() {
+    const previousState = this.environment.getState();
     const action = this.peekNextAction();
     this.clearNextActionCache();
+    this.previousStates.push(previousState);
     const nextState = this.environment.applyAction(action);
+    this.positionHistory.push(this.createPositionHistoryEntry(nextState));
 
     if (nextState.map.done) {
       this.stop();
     }
 
     this.onStateChange(nextState);
+  }
+
+  previousStep() {
+    const previousState = this.previousStates.pop();
+
+    if (!previousState) {
+      return;
+    }
+
+    this.stop();
+    this.algorithm.reset();
+    this.clearNextActionCache();
+    const restoredState = this.environment.restoreState(previousState);
+    if (this.positionHistory.length > 1) {
+      this.positionHistory.pop();
+    }
+    this.onStateChange(restoredState);
   }
 
   peekNextAction() {
@@ -56,6 +95,36 @@ export class Simulator {
 
   clearNextActionCache() {
     this.cachedNextAction = undefined;
+  }
+
+  clearHistory() {
+    this.previousStates = [];
+  }
+
+  canStepBack() {
+    return this.previousStates.length > 0;
+  }
+
+  resetPositionHistory(state) {
+    this.positionHistory = [this.createPositionHistoryEntry(state)];
+  }
+
+  createPositionHistoryEntry(state) {
+    const { robot } = state;
+
+    return {
+      step: state.steps,
+      action: state.latestAction,
+      x: robot.x,
+      y: robot.y,
+      battery: robot.battery,
+      capacity: robot.capacity,
+      maxCapacity: robot.maxCapacity,
+    };
+  }
+
+  getPositionHistory() {
+    return this.positionHistory.map((entry) => ({ ...entry }));
   }
 
   setSpeedMultiplier(multiplier) {

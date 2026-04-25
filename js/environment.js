@@ -26,12 +26,25 @@ export class Environment {
     const chargingStation = { ...start };
     const trashCan = { x: gridSizeX - 1, y: gridSizeY - 1 };
     const reservedPositions = [start, trashCan];
-    const obstaclePositions = this.pickRandomPositions(config.obstacleCount, reservedPositions, gridSizeX, gridSizeY);
-    const trashPositions = this.pickRandomPositions(
-      config.trashCount,
-      [...reservedPositions, ...obstaclePositions],
+    const obstaclePositions = this.pickConnectedObstaclePositions(
+      config.obstacleCount,
+      reservedPositions,
       gridSizeX,
-      gridSizeY,
+      gridSizeY
+    );
+    const reachablePositions = this.getReachablePositions(
+      start,
+      obstaclePositions,
+      gridSizeX,
+      gridSizeY
+    );
+    const trashPositions = this.pickRandomPositionsFromList(
+      config.trashCount,
+      reachablePositions.filter((position) => {
+        return ![...reservedPositions, ...obstaclePositions].some((blocked) =>
+          samePosition(blocked, position)
+        );
+      })
     );
 
     const map = new CleanerMap({
@@ -64,6 +77,35 @@ export class Environment {
     this.config = this.normalizeConfig(config);
     this.initialState = this.createInitialState(this.config);
     this.state = this.initialState.clone();
+    return this.getState();
+  }
+
+  updateConfig(config = this.config) {
+    const nextConfig = this.normalizeConfig(config);
+    const shouldRegenerateMap =
+      nextConfig.gridSizeX !== this.config.gridSizeX ||
+      nextConfig.gridSizeY !== this.config.gridSizeY ||
+      nextConfig.trashCount !== this.config.trashCount ||
+      nextConfig.obstacleCount !== this.config.obstacleCount;
+
+    if (shouldRegenerateMap) {
+      return this.generate(nextConfig);
+    }
+
+    this.config = nextConfig;
+    this.state.config = this.createStateConfig(nextConfig);
+    this.state.robot.maxCapacity = nextConfig.maxCapacity;
+    this.state.robot.capacity = Math.min(
+      this.state.robot.capacity,
+      nextConfig.maxCapacity
+    );
+    this.initialState.config = this.createStateConfig(nextConfig);
+    this.initialState.robot.maxCapacity = nextConfig.maxCapacity;
+    this.initialState.robot.capacity = Math.min(
+      this.initialState.robot.capacity,
+      nextConfig.maxCapacity
+    );
+    this.updateDoneStatus();
     return this.getState();
   }
 
@@ -131,8 +173,117 @@ export class Environment {
     return availablePositions.slice(0, count);
   }
 
+  pickConnectedObstaclePositions(count, reservedPositions, gridSizeX, gridSizeY) {
+    const candidates = this.pickRandomPositions(
+      gridSizeX * gridSizeY,
+      reservedPositions,
+      gridSizeX,
+      gridSizeY
+    );
+    const obstaclePositions = [];
+
+    for (const candidate of candidates) {
+      if (obstaclePositions.length >= count) {
+        break;
+      }
+
+      const nextObstaclePositions = [...obstaclePositions, candidate];
+
+      if (
+        this.isWalkableAreaConnected(
+          nextObstaclePositions,
+          gridSizeX,
+          gridSizeY
+        )
+      ) {
+        obstaclePositions.push(candidate);
+      }
+    }
+
+    return obstaclePositions;
+  }
+
+  pickRandomPositionsFromList(count, positions) {
+    const availablePositions = positions.map((position) => ({ ...position }));
+    shuffleArray(availablePositions);
+    return availablePositions.slice(0, count);
+  }
+
+  isWalkableAreaConnected(obstaclePositions, gridSizeX, gridSizeY) {
+    const start = this.findFirstWalkablePosition(
+      obstaclePositions,
+      gridSizeX,
+      gridSizeY
+    );
+
+    if (!start) {
+      return true;
+    }
+
+    const reachablePositions = this.getReachablePositions(
+      start,
+      obstaclePositions,
+      gridSizeX,
+      gridSizeY
+    );
+    const walkableCellCount =
+      gridSizeX * gridSizeY - obstaclePositions.length;
+
+    return reachablePositions.length === walkableCellCount;
+  }
+
+  findFirstWalkablePosition(obstaclePositions, gridSizeX, gridSizeY) {
+    for (let y = 0; y < gridSizeY; y += 1) {
+      for (let x = 0; x < gridSizeX; x += 1) {
+        const position = { x, y };
+
+        if (!isPositionBlocked(position, obstaclePositions)) {
+          return position;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  getReachablePositions(start, obstaclePositions, gridSizeX, gridSizeY) {
+    const reachablePositions = [];
+    const queue = [start];
+    const visited = new Set([positionKey(start)]);
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      reachablePositions.push(current);
+
+      for (const neighbor of getNeighborPositions(current)) {
+        const key = positionKey(neighbor);
+
+        if (
+          visited.has(key) ||
+          neighbor.x < 0 ||
+          neighbor.y < 0 ||
+          neighbor.x >= gridSizeX ||
+          neighbor.y >= gridSizeY ||
+          isPositionBlocked(neighbor, obstaclePositions)
+        ) {
+          continue;
+        }
+
+        visited.add(key);
+        queue.push(neighbor);
+      }
+    }
+
+    return reachablePositions;
+  }
+
   getState() {
     return this.state.clone();
+  }
+
+  restoreState(state) {
+    this.state = state.clone();
+    return this.getState();
   }
 
   applyMapEdit(tool, x, y) {
@@ -174,16 +325,28 @@ export class Environment {
   }
 
   inspectCell(x, y) {
+    this.state.latestLog = this.getCellInfo(x, y);
+  }
+
+  getCellInfo(x, y) {
+    if (!this.isInsideMap(x, y)) {
+      return `Cell (${x}, ${y}) is outside map.`;
+    }
+
     const position = { x, y };
     const labels = [];
+    const { robot, map } = this.state;
 
-    if (samePosition(this.state.robot, position)) labels.push("robot");
+    if (samePosition(robot, position)) {
+      labels.push(`robot battery ${formatNumber(robot.battery)}%, capacity ${robot.capacity}/${robot.maxCapacity}`);
+    }
+
     if (this.hasTrash(x, y)) labels.push("trash");
     if (this.hasObstacle(x, y)) labels.push("obstacle");
-    if (samePosition(this.state.map.chargingStation, position)) labels.push("charging station");
-    if (samePosition(this.state.map.trashCan, position)) labels.push("trash can");
+    if (samePosition(map.chargingStation, position)) labels.push("charging station");
+    if (samePosition(map.trashCan, position)) labels.push("trash can");
 
-    this.state.latestLog = labels.length > 0
+    return labels.length > 0
       ? `Cell (${x}, ${y}): ${labels.join(", ")}.`
       : `Cell (${x}, ${y}) is empty.`;
   }
@@ -454,6 +617,27 @@ function clampNumber(value, min, max, fallback) {
   }
 
   return Math.min(max, Math.max(min, numberValue));
+}
+
+function formatNumber(value) {
+  return Number.isInteger(value) ? `${value}` : `${Number(value.toFixed(2))}`;
+}
+
+function isPositionBlocked(position, blockedPositions) {
+  return blockedPositions.some((blocked) => samePosition(blocked, position));
+}
+
+function positionKey(position) {
+  return `${position.x},${position.y}`;
+}
+
+function getNeighborPositions(position) {
+  return [
+    { x: position.x, y: position.y - 1 },
+    { x: position.x, y: position.y + 1 },
+    { x: position.x - 1, y: position.y },
+    { x: position.x + 1, y: position.y },
+  ];
 }
 
 function shuffleArray(items) {

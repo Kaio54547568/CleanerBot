@@ -17,7 +17,7 @@ const elements = {
   batteryLossInput: document.getElementById("batteryLossInput"),
   generateButton: document.getElementById("generateButton"),
   resetButton: document.getElementById("resetButton"),
-  stepButton: document.getElementById("stepButton"),
+  previousStepButton: document.getElementById("previousStepButton"),
   nextStepButton: document.getElementById("nextStepButton"),
   runButton: document.getElementById("runButton"),
   stopButton: document.getElementById("stopButton"),
@@ -30,6 +30,7 @@ const elements = {
   latestLog: document.getElementById("latestLog"),
   latestActionValue: document.getElementById("latestActionValue"),
   nextActionValue: document.getElementById("nextActionValue"),
+  positionHistoryBody: document.getElementById("positionHistoryBody"),
   statusBadge: document.getElementById("statusBadge"),
 };
 
@@ -50,6 +51,8 @@ const renderer = new Renderer({
 let simulator = null;
 
 function getMapConfigFromInputs() {
+  updateCountLimitsFromInputs();
+
   return {
     gridSizeX: elements.mapWidthInput.value,
     gridSizeY: elements.mapHeightInput.value,
@@ -80,7 +83,7 @@ function updateButtonState() {
   const isRunning = isReady && simulator.isRunning();
 
   elements.runButton.disabled = !isReady || isRunning;
-  elements.stepButton.disabled = !isReady || isRunning;
+  elements.previousStepButton.disabled = !isReady || isRunning || !simulator.canStepBack();
   elements.nextStepButton.disabled = !isReady || isRunning;
   elements.generateButton.disabled = !isReady || isRunning;
   elements.resetButton.disabled = !isReady;
@@ -95,9 +98,20 @@ function updateButtonState() {
   elements.stopButton.disabled = !isRunning;
 }
 
+function syncConfigFromInputs() {
+  if (!simulator || simulator.isRunning()) {
+    return;
+  }
+
+  updateCountLimitsFromInputs();
+  simulator.updateConfig(getMapConfigFromInputs());
+  updateInputsFromState(environment.getState());
+}
+
 function handleStateChange(state) {
   const nextAction = simulator && !state.map.done ? simulator.peekNextAction() : null;
   renderer.render(state, nextAction);
+  renderPositionHistory();
   updateButtonState();
 }
 
@@ -110,6 +124,7 @@ async function bindEvents() {
 
   elements.generateButton.addEventListener("click", () => {
     simulator.generate(getMapConfigFromInputs());
+    updateInputsFromState(environment.getState());
     updateButtonState();
   });
 
@@ -118,8 +133,8 @@ async function bindEvents() {
     updateButtonState();
   });
 
-  elements.stepButton.addEventListener("click", () => {
-    simulator.step();
+  elements.previousStepButton.addEventListener("click", () => {
+    simulator.previousStep();
     updateButtonState();
   });
 
@@ -129,6 +144,7 @@ async function bindEvents() {
   });
 
   elements.runButton.addEventListener("click", () => {
+    syncConfigFromInputs();
     simulator.run();
     updateButtonState();
   });
@@ -160,9 +176,78 @@ async function bindEvents() {
     environment.saveCurrentAsInitialState();
     simulator.algorithm.reset();
     simulator.clearNextActionCache();
+    simulator.clearHistory();
+    simulator.resetPositionHistory(nextState);
     renderer.render(nextState, simulator.peekNextAction());
+    renderPositionHistory();
     updateCountInputs(nextState);
     updateButtonState();
+  });
+
+  elements.gridMap.addEventListener("mouseover", (event) => {
+    const cell = event.target.closest(".cell");
+
+    if (!cell || elements.editToolSelect.value !== "inspect" || simulator.isRunning()) {
+      return;
+    }
+
+    renderCellInspection(cell);
+  });
+
+  elements.gridMap.addEventListener("mouseleave", () => {
+    if (elements.editToolSelect.value !== "inspect" || simulator.isRunning()) {
+      return;
+    }
+
+    elements.latestLog.textContent = environment.getState().latestLog;
+  });
+
+  [
+    elements.mapWidthInput,
+    elements.mapHeightInput,
+    elements.trashCountInput,
+    elements.obstacleCountInput,
+    elements.maxCapacityInput,
+    elements.batteryLossInput,
+  ].forEach((input) => {
+    input.addEventListener("change", syncConfigFromInputs);
+  });
+}
+
+function renderCellInspection(cell) {
+  const x = Number.parseInt(cell.dataset.x, 10);
+  const y = Number.parseInt(cell.dataset.y, 10);
+  elements.latestLog.textContent = environment.getCellInfo(x, y);
+}
+
+function renderPositionHistory() {
+  const history = simulator ? simulator.getPositionHistory() : [];
+  elements.positionHistoryBody.innerHTML = "";
+
+  if (history.length === 0) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+    cell.textContent = "No history yet.";
+    row.appendChild(cell);
+    elements.positionHistoryBody.appendChild(row);
+    return;
+  }
+
+  history.forEach((entry) => {
+    const row = document.createElement("tr");
+    [
+      `${entry.step}`,
+      formatAction(entry.action),
+      `(${entry.x}, ${entry.y})`,
+      `${formatNumber(entry.battery)}%`,
+      `${entry.capacity}/${entry.maxCapacity}`,
+    ].forEach((value) => {
+      const cell = document.createElement("td");
+      cell.textContent = value;
+      row.appendChild(cell);
+    });
+    elements.positionHistoryBody.appendChild(row);
   });
 }
 
@@ -175,6 +260,67 @@ function setActiveSpeedButton(activeButton) {
 function updateCountInputs(state) {
   elements.trashCountInput.value = `${state.map.trashPositions.length}`;
   elements.obstacleCountInput.value = `${state.map.obstaclePositions.length}`;
+  updateCountLimitsFromInputs();
+}
+
+function updateInputsFromState(state) {
+  elements.mapWidthInput.value = `${state.map.grid_size_x}`;
+  elements.mapHeightInput.value = `${state.map.grid_size_y}`;
+  elements.trashCountInput.value = `${state.map.trashPositions.length}`;
+  elements.obstacleCountInput.value = `${state.map.obstaclePositions.length}`;
+  elements.maxCapacityInput.value = `${state.robot.maxCapacity}`;
+  elements.batteryLossInput.value = `${state.config.batteryLoss}`;
+  updateCountLimitsFromInputs();
+}
+
+function updateCountLimitsFromInputs() {
+  const gridSizeX = clampInteger(
+    elements.mapWidthInput.value,
+    Number.parseInt(elements.mapWidthInput.min, 10),
+    Number.parseInt(elements.mapWidthInput.max, 10)
+  );
+  const gridSizeY = clampInteger(
+    elements.mapHeightInput.value,
+    Number.parseInt(elements.mapHeightInput.min, 10),
+    Number.parseInt(elements.mapHeightInput.max, 10)
+  );
+  const usableCellCount = Math.max(0, gridSizeX * gridSizeY - 2);
+  const obstacleCount = clampInteger(
+    elements.obstacleCountInput.value,
+    0,
+    usableCellCount
+  );
+  const maxTrashCount = Math.max(0, usableCellCount - obstacleCount);
+  const trashCount = clampInteger(
+    elements.trashCountInput.value,
+    0,
+    maxTrashCount
+  );
+
+  elements.mapWidthInput.value = `${gridSizeX}`;
+  elements.mapHeightInput.value = `${gridSizeY}`;
+  elements.obstacleCountInput.max = `${usableCellCount}`;
+  elements.obstacleCountInput.value = `${obstacleCount}`;
+  elements.trashCountInput.max = `${maxTrashCount}`;
+  elements.trashCountInput.value = `${trashCount}`;
+}
+
+function formatAction(action) {
+  return action === null || action === undefined ? "-" : `${action}`;
+}
+
+function formatNumber(value) {
+  return Number.isInteger(value) ? `${value}` : `${Number(value.toFixed(2))}`;
+}
+
+function clampInteger(value, min, max) {
+  const numberValue = Number.parseInt(value, 10);
+
+  if (Number.isNaN(numberValue)) {
+    return min;
+  }
+
+  return Math.min(max, Math.max(min, numberValue));
 }
 
 async function init() {
@@ -189,6 +335,7 @@ async function init() {
 
   bindEvents();
   handleStateChange(environment.getState());
+  updateInputsFromState(environment.getState());
   updateButtonState();
 }
 

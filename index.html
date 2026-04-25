@@ -29,6 +29,28 @@
         <span><i class="legend-box charger"></i>Charge</span>
         <span><i class="legend-box trash-can"></i>Trash can</span>
       </div>
+
+      <section class="history-panel" aria-label="Robot position history">
+        <h2>Position History</h2>
+        <div class="history-table-wrap">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Step</th>
+                <th>Action</th>
+                <th>Position</th>
+                <th>Battery</th>
+                <th>Capacity</th>
+              </tr>
+            </thead>
+            <tbody id="positionHistoryBody">
+              <tr>
+                <td colspan="5">No history yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </section>
 
     <aside class="control-panel" aria-label="Controls">
@@ -49,11 +71,11 @@
           </label>
           <label>
             Trash
-            <input id="trashCountInput" type="number" min="0" max="40" value="4">
+            <input id="trashCountInput" type="number" min="0" max="57" value="4">
           </label>
           <label>
             Obstacles
-            <input id="obstacleCountInput" type="number" min="0" max="80" value="5">
+            <input id="obstacleCountInput" type="number" min="0" max="62" value="5">
           </label>
           <label>
             Max capacity
@@ -68,7 +90,7 @@
         <div class="button-grid">
           <button id="generateButton" type="button">Generate map</button>
           <button id="resetButton" type="button">Reset map</button>
-          <button id="stepButton" type="button">Step</button>
+          <button id="previousStepButton" type="button">Previous Step</button>
           <button id="nextStepButton" type="button">Next Step</button>
           <button id="runButton" type="button">Run</button>
           <button id="stopButton" type="button">Stop</button>

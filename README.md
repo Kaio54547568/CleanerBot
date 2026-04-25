@@ -77,7 +77,8 @@ Map hien thi cac doi tuong bang icon SVG trong `assets/icons/`. Neu muon doi sti
 
 - `Generate map`: sinh map ngau nhien moi theo thong so hien tai.
 - `Reset map`: dua robot, trash, obstacle va cac tram ve lai trang thai ban dau cua map hien tai.
-- `Step` va `Next Step`: chay dung mot action tiep theo.
+- `Previous Step`: quay lai trang thai truoc action gan nhat.
+- `Next Step`: chay dung mot action tiep theo.
 - `Run`: chay lien tuc.
 - `Stop`: dung chay lien tuc.
 - `Speed 1x/2x/3x/5x`: doi toc do khi chay lien tuc.
@@ -85,7 +86,7 @@ Map hien thi cac doi tuong bang icon SVG trong `assets/icons/`. Neu muon doi sti
 Panel `Action` hien:
 
 - `Latest action`: action vua duoc gui vao environment.
-- `Next action`: action simulator dang preview va se dung cho lan Step tiep theo.
+- `Next action`: action simulator dang preview va se dung cho lan Next Step tiep theo.
 
 ## Mo hinh du lieu
 
