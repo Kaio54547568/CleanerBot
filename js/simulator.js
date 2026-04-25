@@ -105,8 +105,13 @@ export class Simulator {
     return this.previousStates.length > 0;
   }
 
-  resetPositionHistory(state) {
-    this.positionHistory = [this.createPositionHistoryEntry(state)];
+  resetPositionHistory(state, action = state.latestAction) {
+    this.positionHistory = [
+      this.createPositionHistoryEntry({
+        ...state,
+        latestAction: action,
+      }),
+    ];
   }
 
   createPositionHistoryEntry(state) {

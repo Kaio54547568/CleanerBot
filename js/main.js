@@ -177,7 +177,7 @@ async function bindEvents() {
     simulator.algorithm.reset();
     simulator.clearNextActionCache();
     simulator.clearHistory();
-    simulator.resetPositionHistory(nextState);
+    simulator.resetPositionHistory(nextState, null);
     renderer.render(nextState, simulator.peekNextAction());
     renderPositionHistory();
     updateCountInputs(nextState);
