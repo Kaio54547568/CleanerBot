@@ -105,7 +105,7 @@ function syncConfigFromInputs() {
 
   updateCountLimitsFromInputs();
   simulator.updateConfig(getMapConfigFromInputs());
-  updateInputsFromState(environment.getState());
+  updateInputsFromState(environment.getInitialState());
 }
 
 function handleStateChange(state) {
@@ -124,12 +124,13 @@ async function bindEvents() {
 
   elements.generateButton.addEventListener("click", () => {
     simulator.generate(getMapConfigFromInputs());
-    updateInputsFromState(environment.getState());
+    updateInputsFromState(environment.getInitialState());
     updateButtonState();
   });
 
   elements.resetButton.addEventListener("click", () => {
     simulator.reset();
+    updateInputsFromState(environment.getInitialState());
     updateButtonState();
   });
 
@@ -335,7 +336,7 @@ async function init() {
 
   bindEvents();
   handleStateChange(environment.getState());
-  updateInputsFromState(environment.getState());
+  updateInputsFromState(environment.getInitialState());
   updateButtonState();
 }
 

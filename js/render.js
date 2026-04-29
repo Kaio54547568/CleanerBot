@@ -41,8 +41,8 @@ export class Renderer {
   renderGrid(state) {
     const { robot, map } = state;
     this.gridElement.innerHTML = "";
-    this.gridElement.style.gridTemplateColumns = `repeat(${map.grid_size_x}, 1fr)`;
-    this.gridElement.style.gridTemplateRows = `repeat(${map.grid_size_y}, 1fr)`;
+    this.gridElement.style.gridTemplateColumns = `repeat(${map.grid_size_x}, minmax(0, 1fr))`;
+    this.gridElement.style.gridTemplateRows = `repeat(${map.grid_size_y}, minmax(0, 1fr))`;
     this.gridElement.style.aspectRatio = `${map.grid_size_x} / ${map.grid_size_y}`;
 
     for (let y = 0; y < map.grid_size_y; y += 1) {
