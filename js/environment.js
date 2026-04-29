@@ -128,6 +128,14 @@ export class Environment {
       cleanInitialState.map.trashPositions.length === 0 &&
       cleanInitialState.robot.capacity === 0 &&
       samePosition(cleanInitialState.robot, cleanInitialState.map.chargingStation);
+    this.config = {
+      ...this.config,
+      gridSizeX: cleanInitialState.map.grid_size_x,
+      gridSizeY: cleanInitialState.map.grid_size_y,
+      trashCount: cleanInitialState.map.trashPositions.length,
+      obstacleCount: cleanInitialState.map.obstaclePositions.length,
+    };
+    cleanInitialState.config = this.createStateConfig(this.config);
     this.initialState = cleanInitialState;
   }
 
