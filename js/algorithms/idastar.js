@@ -175,7 +175,7 @@ export class IDAStarAlgorithm extends BaseAlgorithm {
     const safeExitDistance = Math.max(0, safeExitPath.length - 1);
     const requiredBattery = (distanceToTarget + safeExitDistance) * batteryLoss;
 
-    return robot.battery >= requiredBattery;
+    return robot.battery >= requiredBattery-1;
   }
 
   getRouteToTarget(state, target) {
