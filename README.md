@@ -2,7 +2,7 @@
 
 Skeleton project cho mon Nhap mon AI: mo phong robot hut bui tren web bang HTML, CSS va JavaScript thuan.
 
-Project nay chi tao bo khung de nhom tiep tuc phat trien. Cac thuat toan DFS, IDS, A*, IDA* chua duoc cai dat that.
+Project nay chi tao bo khung de nhom tiep tuc phat trien. Cac thuat toan IDS, A*, IDA* chua duoc cai dat that.
 
 ## Cau truc project
 
@@ -19,7 +19,7 @@ CleanerBot/
 │   └── algorithms/
 │       ├── registry.js
 │       ├── baseAlgorithm.js
-│       ├── dfs.js
+│       ├── bfs.js
 │       ├── ids.js
 │       ├── astar.js
 │       ├── idastar.js
@@ -164,14 +164,13 @@ return ACTIONS.STAY;
 
 Hien tai cac file:
 
-- `dfs.js`
 - `ids.js`
 - `astar.js`
 - `idastar.js`
 
-moi chi co class skeleton va TODO comment. Chua co logic DFS, IDS, A*, IDA* that.
+moi chi co class skeleton va TODO comment. Chua co logic IDS, A*, IDA* that.
 
-`BaseAlgorithm.nextAction(state)` mac dinh tra ve `stay`. Vi vay cac thuat toan skeleton nhu DFS, IDS, A*, IDA* se dung yen cho den khi thanh vien nhom override `nextAction(state)`.
+`BaseAlgorithm.nextAction(state)` mac dinh tra ve `stay`. Vi vay cac thuat toan skeleton nhu IDS, A*, IDA* se dung yen cho den khi thanh vien nhom override `nextAction(state)`.
 
 Khi thanh vien nhom bat dau cai dat thuat toan that, hay override `nextAction(state)` trong file thuat toan tuong ung.
 
