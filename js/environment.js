@@ -4,10 +4,10 @@ const MAX_BATTERY = 100;
 const ACTION_COST = 1;
 
 const DEFAULT_CONFIG = Object.freeze({
-  gridSizeX: 8,
-  gridSizeY: 8,
-  trashCount: 4,
-  obstacleCount: 5,
+  gridSizeX: 12,
+  gridSizeY: 12,
+  trashCount: 10,
+  obstacleCount: 10,
   maxCapacity: 5,
   batteryLoss: 1,
 });
@@ -125,6 +125,14 @@ export class Environment {
     cleanInitialState.latestAction = null;
     cleanInitialState.latestLog = "Map ready.";
     cleanInitialState.map.done = cleanInitialState.map.trashPositions.length === 0;
+    this.config = {
+      ...this.config,
+      gridSizeX: cleanInitialState.map.grid_size_x,
+      gridSizeY: cleanInitialState.map.grid_size_y,
+      trashCount: cleanInitialState.map.trashPositions.length,
+      obstacleCount: cleanInitialState.map.obstaclePositions.length,
+    };
+    cleanInitialState.config = this.createStateConfig(this.config);
     this.initialState = cleanInitialState;
   }
 
@@ -279,6 +287,10 @@ export class Environment {
 
   getState() {
     return this.state.clone();
+  }
+
+  getInitialState() {
+    return this.initialState.clone();
   }
 
   restoreState(state) {

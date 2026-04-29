@@ -3,6 +3,8 @@ import { samePosition } from "../environment.js";
 import { BaseAlgorithm } from "./baseAlgorithm.js";
 
 // A*: f(n) = g(n) + h(n)
+// g(n) la chi phi di chuyen tu vi tri hien tai den node n (so buoc di chuyen)
+// h(n) la heuristic, do an uoc chi phi tu node n den dich den (trong truong hop nay la khoang cach Manhattan)
 export class AStarAlgorithm extends BaseAlgorithm {
   constructor() {
     super();
