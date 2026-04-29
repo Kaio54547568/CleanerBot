@@ -1,8 +1,8 @@
 export const algorithmRegistry = [
   {
-    id: "dfs",
-    label: "DFS",
-    loadClass: () => import("./dfs.js").then((module) => module.DFSAlgorithm),
+    id: "bfs",
+    label: "BFS",
+    loadClass: () => import("./bfs.js").then((module) => module.BFSAlgorithm),
   },
   {
     id: "ids",

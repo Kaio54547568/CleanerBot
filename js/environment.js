@@ -124,7 +124,10 @@ export class Environment {
     cleanInitialState.steps = 0;
     cleanInitialState.latestAction = null;
     cleanInitialState.latestLog = "Map ready.";
-    cleanInitialState.map.done = cleanInitialState.map.trashPositions.length === 0;
+    cleanInitialState.map.done =
+      cleanInitialState.map.trashPositions.length === 0 &&
+      cleanInitialState.robot.capacity === 0 &&
+      samePosition(cleanInitialState.robot, cleanInitialState.map.chargingStation);
     this.initialState = cleanInitialState;
   }
 
@@ -563,7 +566,10 @@ export class Environment {
 
   updateDoneStatus() {
     const { robot, map } = this.state;
-    map.done = map.trashPositions.length === 0 && robot.capacity === 0;
+    map.done =
+      map.trashPositions.length === 0 &&
+      robot.capacity === 0 &&
+      samePosition(robot, map.chargingStation);
   }
 
   isInsideMap(x, y) {
