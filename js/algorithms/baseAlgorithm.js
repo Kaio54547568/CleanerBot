@@ -8,14 +8,111 @@ const DEFAULT_ACTION_COST = 1;
 export class BaseAlgorithm {
   constructor() {
     this.name = "BaseAlgorithm";
+    this.resetMetrics();
   }
 
   reset() {
-    // Child algorithms can clear their queue, stack, visited set, or heuristic cache here.
+    this.resetMetrics();
   }
 
   nextAction(state) {
+    // Accumulate runtime across all decision steps of the current run.
+    const startedAt = getNow();
+    const action = this.computeNextAction(state);
+    this.metrics.runtimeMs += getNow() - startedAt;
+    return action ?? ACTIONS.STAY;
+  }
+
+  computeNextAction() {
     return ACTIONS.STAY;
+  }
+
+  resetMetrics() {
+    this.metrics = {
+      runtimeMs: 0,
+      visitedNodes: 0,
+      peakMemory: 0,
+      batteryConsumed: 0,
+      trace: [],
+      heuristicDescription: `${this.name} does not use heuristic.`,
+    };
+  }
+
+  getMetrics() {
+    return cloneMetrics(this.metrics);
+  }
+
+  getMetricsSnapshot() {
+    return this.getMetrics();
+  }
+
+  restoreMetrics(snapshot) {
+    this.metrics = snapshot ? cloneMetrics(snapshot) : {
+      runtimeMs: 0,
+      visitedNodes: 0,
+      peakMemory: 0,
+      batteryConsumed: 0,
+      trace: [],
+      heuristicDescription: `${this.name} does not use heuristic.`,
+    };
+  }
+
+  setHeuristicDescription(description) {
+    this.metrics.heuristicDescription = description;
+  }
+
+  recordNodeVisit({ position, goal = null, g = null, h = null, note = null }) {
+    if (!position) {
+      return;
+    }
+
+    const hasCost = Number.isFinite(g);
+    const hasHeuristic = Number.isFinite(h);
+
+    // Store raw g/h/f values so the UI can render the traversal trace and formulas.
+    this.metrics.visitedNodes += 1;
+    this.metrics.trace.push({
+      order: this.metrics.trace.length + 1,
+      position: { x: position.x, y: position.y },
+      label: this.formatCoordinateLabel(position),
+      goal: goal ? { x: goal.x, y: goal.y, label: this.formatCoordinateLabel(goal) } : null,
+      g: hasCost ? g : null,
+      h: hasHeuristic ? h : null,
+      f: hasCost && hasHeuristic ? g + h : null,
+      note,
+    });
+  }
+
+  recordMemoryUsage(nodeCount) {
+    if (!Number.isFinite(nodeCount)) {
+      return;
+    }
+
+    this.metrics.peakMemory = Math.max(this.metrics.peakMemory, Math.max(0, Math.floor(nodeCount)));
+  }
+
+  addBatteryConsumed(amount) {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return;
+    }
+
+    this.metrics.batteryConsumed += amount;
+  }
+
+  formatCoordinateLabel(position) {
+    return `${this.getColumnLabel(position.x)}${position.y + 1}`;
+  }
+
+  getColumnLabel(index) {
+    let current = index;
+    let label = "";
+
+    do {
+      label = String.fromCharCode(65 + (current % 26)) + label;
+      current = Math.floor(current / 26) - 1;
+    } while (current >= 0);
+
+    return label;
   }
 
   getMaxBattery(state) {
@@ -103,4 +200,16 @@ export class BaseAlgorithm {
 
     return bestMove ? bestMove.action : ACTIONS.STAY;
   }
+}
+
+function getNow() {
+  if (typeof globalThis.performance?.now === "function") {
+    return globalThis.performance.now();
+  }
+
+  return Date.now();
+}
+
+function cloneMetrics(metrics) {
+  return JSON.parse(JSON.stringify(metrics));
 }

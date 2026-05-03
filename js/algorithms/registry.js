@@ -5,6 +5,11 @@ export const algorithmRegistry = [
     loadClass: () => import("./bfs.js").then((module) => module.BFSAlgorithm),
   },
   {
+    id: "dfs",
+    label: "DFS",
+    loadClass: () => import("./dfs.js").then((module) => module.DFSAlgorithm),
+  },
+  {
     id: "ids",
     label: "IDS",
     loadClass: () => import("./ids.js").then((module) => module.IDSAlgorithm),

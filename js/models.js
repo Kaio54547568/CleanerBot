@@ -88,3 +88,47 @@ export class SimulationState {
     });
   }
 }
+
+export function simulationStateFromPlain(value = {}) {
+  if (value instanceof SimulationState) {
+    return value.clone();
+  }
+
+  return new SimulationState({
+    robot: value.robot instanceof Robot ? value.robot.clone() : new Robot(value.robot),
+    map: value.map instanceof CleanerMap ? value.map.clone() : new CleanerMap(value.map),
+    config: { ...(value.config ?? {}) },
+    steps: value.steps ?? 0,
+    latestAction: value.latestAction ?? null,
+    latestLog: value.latestLog ?? "No action yet.",
+  });
+}
+
+export function simulationStateToPlain(state) {
+  const snapshot = simulationStateFromPlain(state);
+
+  return {
+    robot: {
+      battery: snapshot.robot.battery,
+      capacity: snapshot.robot.capacity,
+      maxCapacity: snapshot.robot.maxCapacity,
+      x: snapshot.robot.x,
+      y: snapshot.robot.y,
+    },
+    map: {
+      grid_size_x: snapshot.map.grid_size_x,
+      grid_size_y: snapshot.map.grid_size_y,
+      start_x: snapshot.map.start_x,
+      start_y: snapshot.map.start_y,
+      trashPositions: snapshot.map.trashPositions.map((position) => ({ ...position })),
+      obstaclePositions: snapshot.map.obstaclePositions.map((position) => ({ ...position })),
+      chargingStation: { ...snapshot.map.chargingStation },
+      trashCan: { ...snapshot.map.trashCan },
+      done: snapshot.map.done,
+    },
+    config: { ...snapshot.config },
+    steps: snapshot.steps,
+    latestAction: snapshot.latestAction,
+    latestLog: snapshot.latestLog,
+  };
+}

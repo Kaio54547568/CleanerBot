@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleanerBot Compare</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="compare-page">
+  <main class="compare-shell">
+    <div class="compare-toolbar">
+      <div>
+        <h1>Compare Algorithms</h1>
+        <p>So sanh BFS, DFS, A* va IDA* tren cung mot trang thai map ban dau.</p>
+        <p class="module-warning">
+          JavaScript module chua chay. Hay mo bang Live Server thay vi mo truc tiep file HTML.
+        </p>
+      </div>
+
+      <div class="compare-actions">
+        <button id="runCompareButton" type="button">Run Compare</button>
+        <button id="resetCompareButton" class="secondary-button" type="button">Reset Compare</button>
+        <button id="backButton" class="secondary-button" type="button">Back to Simulator</button>
+      </div>
+    </div>
+
+    <section id="compareGrid" class="compare-grid" aria-label="Algorithm comparison grid"></section>
+  </main>
+
+  <script type="module" src="js/compare.js"></script>
+</body>
+</html>

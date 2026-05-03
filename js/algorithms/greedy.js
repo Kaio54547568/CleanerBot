@@ -6,15 +6,18 @@ export class GreedyAlgorithm extends BaseAlgorithm {
   constructor() {
     super();
     this.name = "Greedy";
+    this.reset();
   }
 
   reset() {
     super.reset();
-    // Greedy hien tai khong luu trang thai noi bo.
+    this.setHeuristicDescription("Greedy does not use graph-search heuristic trace.");
   }
 
-  nextAction(state) {
+  computeNextAction(state) {
     const { robot, map } = state;
+    this.recordNodeVisit({ position: state.robot });
+    this.recordMemoryUsage(1);
 
     if (this.isAtTrashCan(state) && robot.capacity > 0) {
       return this.hasEnoughBatteryForTarget(state, map.trashCan)

@@ -9,6 +9,7 @@ export class Simulator {
     this.intervalId = null;
     this.cachedNextAction = undefined;
     this.previousStates = [];
+    this.previousMetricSnapshots = [];
     this.positionHistory = [];
     this.resetPositionHistory(this.environment.getState());
   }
@@ -55,9 +56,15 @@ export class Simulator {
   step() {
     const previousState = this.environment.getState();
     const action = this.peekNextAction();
+    const previousMetrics = this.algorithm.getMetricsSnapshot();
     this.clearNextActionCache();
     this.previousStates.push(previousState);
+    this.previousMetricSnapshots.push(previousMetrics);
     const nextState = this.environment.applyAction(action);
+    // Battery usage is derived from the real state transition, not estimated by the algorithm.
+    this.algorithm.addBatteryConsumed(
+      Math.max(0, previousState.robot.battery - nextState.robot.battery)
+    );
     this.positionHistory.push(this.createPositionHistoryEntry(nextState));
 
     if (nextState.map.done) {
@@ -69,6 +76,7 @@ export class Simulator {
 
   previousStep() {
     const previousState = this.previousStates.pop();
+    const previousMetrics = this.previousMetricSnapshots.pop();
 
     if (!previousState) {
       return;
@@ -76,6 +84,7 @@ export class Simulator {
 
     this.stop();
     this.algorithm.reset();
+    this.algorithm.restoreMetrics(previousMetrics);
     this.clearNextActionCache();
     const restoredState = this.environment.restoreState(previousState);
     if (this.positionHistory.length > 1) {
@@ -99,6 +108,7 @@ export class Simulator {
 
   clearHistory() {
     this.previousStates = [];
+    this.previousMetricSnapshots = [];
   }
 
   canStepBack() {
@@ -130,6 +140,10 @@ export class Simulator {
 
   getPositionHistory() {
     return this.positionHistory.map((entry) => ({ ...entry }));
+  }
+
+  getAlgorithmMetrics() {
+    return this.algorithm?.getMetrics() ?? null;
   }
 
   setSpeedMultiplier(multiplier) {

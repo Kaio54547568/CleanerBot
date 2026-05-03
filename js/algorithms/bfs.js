@@ -18,9 +18,10 @@ export class BFSAlgorithm extends BaseAlgorithm {
     this.cachedTargetKey = null;
     this.cachedMapKey = null;
     this.recentPositions = [];
+    this.setHeuristicDescription("BFS does not use heuristic.");
   }
 
-  nextAction(state) {
+  computeNextAction(state) {
     const { robot, map } = state;
     this.rememberPosition(state);
 
@@ -153,9 +154,13 @@ export class BFSAlgorithm extends BaseAlgorithm {
     ];
     const visited = new Set([this.positionKey(start)]);
 
+    this.recordMemoryUsage(queue.length + visited.size);
+
     while (queue.length > 0) {
       const node = queue.shift();
       const current = node.position;
+      this.recordNodeVisit({ position: current });
+      this.recordMemoryUsage(queue.length + visited.size);
 
       if (this.isTrashPosition(state, current)) {
         if (
@@ -181,6 +186,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
           position: candidate.position,
           path: [...node.path, candidate.position],
         });
+        this.recordMemoryUsage(queue.length + visited.size);
       }
     }
 
@@ -208,9 +214,13 @@ export class BFSAlgorithm extends BaseAlgorithm {
     ];
     const visited = new Set([this.positionKey(normalizedStart)]);
 
+    this.recordMemoryUsage(queue.length + visited.size);
+
     while (queue.length > 0) {
       const node = queue.shift();
       const current = node.position;
+      this.recordNodeVisit({ position: current });
+      this.recordMemoryUsage(queue.length + visited.size);
 
       if (samePosition(current, goal)) {
         return node.path;
@@ -232,6 +242,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
           position: candidate.position,
           path: [...node.path, candidate.position],
         });
+        this.recordMemoryUsage(queue.length + visited.size);
       }
     }
 
@@ -244,6 +255,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
     if (syncedRoute && syncedRoute.length > 0) {
       if (options.avoidFirstStepToPosition && syncedRoute.length >= 2) {
         const avoidKey = this.positionKey(options.avoidFirstStepToPosition);
+
         if (this.positionKey(syncedRoute[1]) === avoidKey) {
           this.clearRoute();
         } else {
@@ -299,24 +311,6 @@ export class BFSAlgorithm extends BaseAlgorithm {
     this.cachedRoute = null;
     this.cachedTargetKey = null;
     this.cachedMapKey = null;
-  }
-
-  canMoveTo(state, position) {
-    const { map } = state;
-
-    const insideMap =
-      position.x >= 0 &&
-      position.y >= 0 &&
-      position.x < map.grid_size_x &&
-      position.y < map.grid_size_y;
-
-    if (!insideMap) {
-      return false;
-    }
-
-    return !map.obstaclePositions.some((obstacle) =>
-      samePosition(obstacle, position)
-    );
   }
 
   getMoveCandidates(position) {
@@ -446,6 +440,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
       }
 
       const pathToChargingStation = this.findPath(state, target, map.chargingStation);
+
       if (!pathToChargingStation) {
         return Number.POSITIVE_INFINITY;
       }
@@ -456,6 +451,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
 
     if (!this.isTrashPosition(state, target) || robot.capacity >= robot.maxCapacity) {
       const pathToChargingStation = this.findPath(state, target, map.chargingStation);
+
       if (!pathToChargingStation) {
         return Number.POSITIVE_INFINITY;
       }
@@ -472,6 +468,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
     }
 
     const safeExitPath = this.findPath(state, target, safeExitTarget);
+
     if (!safeExitPath) {
       return Number.POSITIVE_INFINITY;
     }
@@ -505,21 +502,6 @@ export class BFSAlgorithm extends BaseAlgorithm {
     return distance * this.getBatteryLoss(state);
   }
 
-  getBatteryLoss(state) {
-    const batteryLoss = Number(state.config?.batteryLoss ?? 1);
-    return Number.isNaN(batteryLoss) ? 1 : batteryLoss;
-  }
-
-  getActionCost(state) {
-    const actionCost = Number(state.config?.actionCost ?? 1);
-    return Number.isNaN(actionCost) ? 1 : actionCost;
-  }
-
-  getMaxBattery(state) {
-    const maxBattery = Number(state.config?.maxBattery ?? 100);
-    return Number.isNaN(maxBattery) ? 100 : maxBattery;
-  }
-
   positionKey(position) {
     return `${position.x},${position.y}`;
   }
@@ -532,19 +514,6 @@ export class BFSAlgorithm extends BaseAlgorithm {
       .join(",");
 
     return `${map.grid_size_x}x${map.grid_size_y}|${obstacleSignature}`;
-  }
-
-  isAtTrashCan(state) {
-    return samePosition(state.robot, state.map.trashCan);
-  }
-
-  isAtChargingStation(state) {
-    return samePosition(state.robot, state.map.chargingStation);
-  }
-
-  hasTrashAtRobot(state) {
-    const { robot, map } = state;
-    return map.trashPositions.some((trash) => samePosition(robot, trash));
   }
 
   isTrashPosition(state, position) {

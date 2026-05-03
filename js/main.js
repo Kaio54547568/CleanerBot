@@ -1,12 +1,17 @@
 import { Environment } from "./environment.js";
+import { simulationStateToPlain } from "./models.js";
 import { Simulator } from "./simulator.js";
-import { Renderer } from "./render.js";
+import { Renderer, formatAction, formatGridCoordinate, formatNumber } from "./render.js";
 import { algorithmRegistry, createAlgorithm } from "./algorithms/registry.js";
+
+const COMPARE_STATE_STORAGE_KEY = "cleanerbot.compare.initialState";
 
 document.body.classList.add("js-ready");
 
 const elements = {
   gridMap: document.getElementById("gridMap"),
+  gridColumnLabels: document.getElementById("gridColumnLabels"),
+  gridRowLabels: document.getElementById("gridRowLabels"),
   algorithmSelect: document.getElementById("algorithmSelect"),
   editToolSelect: document.getElementById("editToolSelect"),
   mapWidthInput: document.getElementById("mapWidthInput"),
@@ -21,6 +26,7 @@ const elements = {
   nextStepButton: document.getElementById("nextStepButton"),
   runButton: document.getElementById("runButton"),
   stopButton: document.getElementById("stopButton"),
+  compareButton: document.getElementById("compareButton"),
   speedButtons: document.querySelectorAll(".speed-button"),
   batteryValue: document.getElementById("batteryValue"),
   capacityValue: document.getElementById("capacityValue"),
@@ -31,12 +37,20 @@ const elements = {
   latestActionValue: document.getElementById("latestActionValue"),
   nextActionValue: document.getElementById("nextActionValue"),
   positionHistoryBody: document.getElementById("positionHistoryBody"),
+  runtimeValue: document.getElementById("runtimeValue"),
+  visitedNodesValue: document.getElementById("visitedNodesValue"),
+  requiredMemoryValue: document.getElementById("requiredMemoryValue"),
+  batteryConsumedValue: document.getElementById("batteryConsumedValue"),
+  heuristicDescription: document.getElementById("heuristicDescription"),
+  algorithmTrace: document.getElementById("algorithmTrace"),
   statusBadge: document.getElementById("statusBadge"),
 };
 
 const environment = new Environment();
 const renderer = new Renderer({
   gridElement: elements.gridMap,
+  columnLabelsElement: elements.gridColumnLabels,
+  rowLabelsElement: elements.gridRowLabels,
   batteryElement: elements.batteryValue,
   capacityElement: elements.capacityValue,
   positionElement: elements.positionValue,
@@ -49,6 +63,9 @@ const renderer = new Renderer({
 });
 
 let simulator = null;
+let renderedTraceCount = 0;
+let renderedHeuristicDescription = "";
+let renderedTraceSignature = "";
 
 function getMapConfigFromInputs() {
   updateCountLimitsFromInputs();
@@ -87,6 +104,7 @@ function updateButtonState() {
   elements.nextStepButton.disabled = !isReady || isRunning;
   elements.generateButton.disabled = !isReady || isRunning;
   elements.resetButton.disabled = !isReady;
+  elements.compareButton.disabled = !isReady || isRunning;
   elements.algorithmSelect.disabled = !isReady || isRunning;
   elements.editToolSelect.disabled = !isReady || isRunning;
   elements.mapWidthInput.disabled = !isReady || isRunning;
@@ -112,6 +130,8 @@ function handleStateChange(state) {
   const nextAction = simulator && !state.map.done ? simulator.peekNextAction() : null;
   renderer.render(state, nextAction);
   renderPositionHistory();
+  renderAlgorithmMetrics();
+  renderAlgorithmTrace();
   updateButtonState();
 }
 
@@ -155,6 +175,11 @@ async function bindEvents() {
     updateButtonState();
   });
 
+  elements.compareButton.addEventListener("click", () => {
+    saveCompareState();
+    window.location.href = "compare.html";
+  });
+
   elements.speedButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const speed = Number.parseInt(button.dataset.speed, 10);
@@ -181,6 +206,8 @@ async function bindEvents() {
     simulator.resetPositionHistory(nextState, null);
     renderer.render(nextState, simulator.peekNextAction());
     renderPositionHistory();
+    renderAlgorithmMetrics();
+    renderAlgorithmTrace();
     updateCountInputs(nextState);
     updateButtonState();
   });
@@ -240,7 +267,7 @@ function renderPositionHistory() {
     [
       `${entry.step}`,
       formatAction(entry.action),
-      `(${entry.x}, ${entry.y})`,
+      `${formatGridCoordinate(entry)} (${entry.x}, ${entry.y})`,
       `${formatNumber(entry.battery)}%`,
       `${entry.capacity}/${entry.maxCapacity}`,
     ].forEach((value) => {
@@ -250,6 +277,104 @@ function renderPositionHistory() {
     });
     elements.positionHistoryBody.appendChild(row);
   });
+}
+
+function renderAlgorithmMetrics() {
+  const metrics = simulator?.getAlgorithmMetrics();
+
+  if (!metrics) {
+    elements.runtimeValue.textContent = "0 ms";
+    elements.visitedNodesValue.textContent = "0";
+    elements.requiredMemoryValue.textContent = "0 nodes";
+    elements.batteryConsumedValue.textContent = "0";
+    return;
+  }
+
+  elements.runtimeValue.textContent = `${formatNumber(metrics.runtimeMs)} ms`;
+  elements.visitedNodesValue.textContent = `${metrics.visitedNodes}`;
+  elements.requiredMemoryValue.textContent = `${metrics.peakMemory} nodes`;
+  elements.batteryConsumedValue.textContent = `${formatNumber(metrics.batteryConsumed)}`;
+}
+
+function renderAlgorithmTrace() {
+  const metrics = simulator?.getAlgorithmMetrics();
+  const trace = metrics?.trace ?? [];
+  const heuristicDescription = metrics?.heuristicDescription ?? "Heuristic: not available.";
+  const traceSignature = getTraceSignature(trace, heuristicDescription);
+
+  if (
+    trace.length < renderedTraceCount ||
+    heuristicDescription !== renderedHeuristicDescription ||
+    (trace.length === renderedTraceCount && traceSignature !== renderedTraceSignature)
+  ) {
+    elements.algorithmTrace.innerHTML = "";
+    renderedTraceCount = 0;
+  }
+
+  elements.heuristicDescription.textContent = heuristicDescription;
+  renderedHeuristicDescription = heuristicDescription;
+
+  if (trace.length === 0) {
+    elements.algorithmTrace.innerHTML = "";
+    const empty = document.createElement("p");
+    empty.className = "trace-empty";
+    empty.textContent = "No trace yet.";
+    elements.algorithmTrace.appendChild(empty);
+    renderedTraceCount = 0;
+    renderedTraceSignature = "";
+    return;
+  }
+
+  if (renderedTraceCount === 0) {
+    elements.algorithmTrace.innerHTML = "";
+  }
+
+  trace.slice(renderedTraceCount).forEach((entry) => {
+    elements.algorithmTrace.appendChild(createTraceEntry(entry));
+  });
+
+  renderedTraceCount = trace.length;
+  renderedTraceSignature = traceSignature;
+}
+
+function createTraceEntry(entry) {
+  const wrapper = document.createElement("article");
+  wrapper.className = "trace-entry";
+
+  const title = document.createElement("p");
+  title.className = "trace-title";
+  title.textContent = `Step ${entry.order}: Visit ${entry.label}`;
+  wrapper.appendChild(title);
+
+  if (entry.g !== null && entry.h !== null && entry.f !== null && entry.goal) {
+    wrapper.appendChild(createTraceLine(`g(${entry.label}) = ${entry.g}`));
+    wrapper.appendChild(createTraceLine(
+      `h(${entry.label}) = |${entry.goal.x} - ${entry.position.x}| + |${entry.goal.y} - ${entry.position.y}| = ${entry.h}`
+    ));
+    wrapper.appendChild(createTraceLine(
+      `f(${entry.label}) = g(${entry.label}) + h(${entry.label}) = ${entry.g} + ${entry.h} = ${entry.f}`
+    ));
+  }
+
+  if (entry.note) {
+    wrapper.appendChild(createTraceLine(entry.note));
+  }
+
+  return wrapper;
+}
+
+function createTraceLine(text) {
+  const line = document.createElement("p");
+  line.className = "trace-line";
+  line.textContent = text;
+  return line;
+}
+
+function saveCompareState() {
+  window.sessionStorage.setItem(
+    COMPARE_STATE_STORAGE_KEY,
+    JSON.stringify(simulationStateToPlain(environment.getInitialState()))
+  );
 }
 
 function setActiveSpeedButton(activeButton) {
@@ -306,14 +431,6 @@ function updateCountLimitsFromInputs() {
   elements.trashCountInput.value = `${trashCount}`;
 }
 
-function formatAction(action) {
-  return action === null || action === undefined ? "-" : `${action}`;
-}
-
-function formatNumber(value) {
-  return Number.isInteger(value) ? `${value}` : `${Number(value.toFixed(2))}`;
-}
-
 function clampInteger(value, min, max) {
   const numberValue = Number.parseInt(value, 10);
 
@@ -322,6 +439,21 @@ function clampInteger(value, min, max) {
   }
 
   return Math.min(max, Math.max(min, numberValue));
+}
+
+function getTraceSignature(trace, heuristicDescription) {
+  const firstEntry = trace[0];
+  const lastEntry = trace[trace.length - 1];
+
+  return [
+    heuristicDescription,
+    trace.length,
+    firstEntry?.label ?? "",
+    lastEntry?.label ?? "",
+    lastEntry?.g ?? "",
+    lastEntry?.h ?? "",
+    lastEntry?.f ?? "",
+  ].join("|");
 }
 
 async function init() {
