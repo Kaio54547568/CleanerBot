@@ -1,4 +1,4 @@
-import { ACTIONS, CleanerMap, Robot, SimulationState } from "./models.js";
+import { ACTIONS, CleanerMap, Robot, SimulationState, simulationStateFromPlain } from "./models.js";
 
 const MAX_BATTERY = 100;
 const ACTION_COST = 1;
@@ -128,14 +128,6 @@ export class Environment {
       cleanInitialState.map.trashPositions.length === 0 &&
       cleanInitialState.robot.capacity === 0 &&
       samePosition(cleanInitialState.robot, cleanInitialState.map.chargingStation);
-    this.config = {
-      ...this.config,
-      gridSizeX: cleanInitialState.map.grid_size_x,
-      gridSizeY: cleanInitialState.map.grid_size_y,
-      trashCount: cleanInitialState.map.trashPositions.length,
-      obstacleCount: cleanInitialState.map.obstaclePositions.length,
-    };
-    cleanInitialState.config = this.createStateConfig(this.config);
     this.initialState = cleanInitialState;
   }
 
@@ -253,7 +245,6 @@ export class Environment {
         }
       }
     }
-
     return null;
   }
 
@@ -296,8 +287,28 @@ export class Environment {
     return this.initialState.clone();
   }
 
+  loadState(state) {
+    const nextState = simulationStateFromPlain(state);
+
+    this.config = this.normalizeConfig({
+      gridSizeX: nextState.map.grid_size_x,
+      gridSizeY: nextState.map.grid_size_y,
+      trashCount: nextState.map.trashPositions.length,
+      obstacleCount: nextState.map.obstaclePositions.length,
+      maxCapacity: nextState.robot.maxCapacity,
+      batteryLoss: nextState.config?.batteryLoss ?? this.config.batteryLoss,
+    });
+
+    nextState.config = this.createStateConfig(this.config);
+    this.initialState = nextState.clone();
+    this.state = nextState.clone();
+    this.updateDoneStatus();
+    this.initialState.map.done = this.state.map.done;
+    return this.getState();
+  }
+
   restoreState(state) {
-    this.state = state.clone();
+    this.state = simulationStateFromPlain(state);
     return this.getState();
   }
 

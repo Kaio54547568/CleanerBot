@@ -1,137 +1,152 @@
-import { ACTIONS } from "../models.js";
 import { samePosition } from "../environment.js";
-import { BaseAlgorithm } from "./baseAlgorithm.js";
+import { DFSAlgorithm } from "./dfs.js";
 
-export class IDSAlgorithm extends BaseAlgorithm {
+export class IDSAlgorithm extends DFSAlgorithm {
   constructor() {
     super();
     this.name = "IDS";
-    this.actionQueue = []; 
+    this.reset();
   }
 
   reset() {
     super.reset();
-    this.actionQueue = [];
+    this.setHeuristicDescription("IDS does not use heuristic.");
   }
 
-
-  nextAction(state) {
+  findNearestSafeTrashTarget(state) {
     const { robot, map } = state;
+    const maxDepth = map.grid_size_x * map.grid_size_y;
 
-    if (this.isAtTrashCan(state) && robot.capacity > 0) {
-      this.actionQueue = []; // Hủy kế hoạch cũ vì đã đạt mục tiêu đổ rác
-      return ACTIONS.LET_TRASH_OUT;
-    }
+    for (let depthLimit = 0; depthLimit <= maxDepth; depthLimit += 1) {
+      const result = this.depthLimitedTargetSearch(state, robot, depthLimit);
 
-    if (this.isAtChargingStation(state) && robot.battery < this.getMaxBattery(state)) {
-      this.actionQueue = []; 
-      return ACTIONS.CHARGE;
-    }
-
-    if (this.hasTrashAtRobot(state) && robot.capacity < robot.maxCapacity) {
-      if (this.hasEnoughBatteryForTarget(state, robot)) {
-        this.actionQueue = [];
-        return ACTIONS.SUCK_TRASH;
+      if (result) {
+        return result;
       }
     }
 
-    if (this.actionQueue.length > 0) {
-      const nextMove = this.actionQueue.shift();
-      if (this.canMoveTo(state, this.getExpectedPosition(robot, nextMove))) {
-        return nextMove;
-      }
-      this.actionQueue = []; // Lệch kế hoạch, cần tính toán lại
-    }
-
-    let target = this.chooseWorkTarget(state);
-
-    if (target && !this.hasEnoughBatteryForTarget(state, target)) {
-      target = map.chargingStation;
-    }
-
-    if (!target) return this.getChargingAction(state);
-
-    const maxPossibleDepth = map.grid_size_x * map.grid_size_y;
-    
-    for (let limit = 0; limit <= maxPossibleDepth; limit++) {
-      const path = this.dls(state, robot, target, limit, new Set());
-      if (path) {
-        this.actionQueue = path;
-        return this.actionQueue.shift() || ACTIONS.STAY;
-      }
-    }
-
-    return ACTIONS.STAY;
-  }
-
-
-  dls(state, currentPos, target, limit, visited) {
-    if (samePosition(currentPos, target)) return [];
-    if (limit <= 0) return null;
-
-    const posKey = `${currentPos.x},${currentPos.y}`;
-    visited.add(posKey);
-
-
-    const candidates = this.getMoveCandidates(currentPos)
-      .filter(move => this.canMoveTo(state, move.position))
-      .sort((a, b) => this.manhattanDistance(a.position, target) - this.manhattanDistance(b.position, target));
-
-    for (const move of candidates) {
-      if (!visited.has(`${move.position.x},${move.position.y}`)) {
-        const path = this.dls(state, move.position, target, limit - 1, new Set(visited));
-        if (path !== null) {
-          return [move.action, ...path];
-        }
-      }
-    }
     return null;
   }
 
-  chooseWorkTarget(state) {
-    const { robot, map } = state;
+  depthLimitedTargetSearch(state, start, depthLimit) {
+    const path = [{ x: start.x, y: start.y }];
+    const pathSet = new Set([this.positionKey(start)]);
+    const result = this.depthLimitedTraverse(
+      state,
+      path,
+      pathSet,
+      depthLimit,
+      (currentPath) => {
+        const current = currentPath[currentPath.length - 1];
 
-    if (robot.capacity >= robot.maxCapacity || (map.trashPositions.length === 0 && robot.capacity > 0)) {
-      return map.trashCan;
+        if (
+          this.isTrashPosition(state, current) &&
+          this.hasEnoughBatteryForTarget(state, current)
+        ) {
+          return {
+            target: current,
+            route: currentPath.map((position) => ({ ...position })),
+          };
+        }
+
+        return null;
+      }
+    );
+
+    return result;
+  }
+
+  findPath(state, start, goal, options = {}) {
+    if (!start || !goal) {
+      return null;
     }
 
-    const validTrash = map.trashPositions.filter(trash => {
-      return !map.obstaclePositions.some(obs => samePosition(obs, trash));
-    });
-
-    return this.findNearestPosition(robot, validTrash);
-  }
-
-
-  getExpectedPosition(robot, action) {
-    const pos = { x: robot.x, y: robot.y };
-    if (action === ACTIONS.UP) pos.y--;
-    if (action === ACTIONS.DOWN) pos.y++;
-    if (action === ACTIONS.LEFT) pos.x--;
-    if (action === ACTIONS.RIGHT) pos.x++;
-    return pos;
-  }
-
-
-  hasEnoughBatteryForTarget(state, target) {
-    const { robot, map } = state;
-    const batteryLoss = this.getBatteryLoss(state);
-    const actionCost = this.getActionCost(state);
-
-    const distToTarget = this.manhattanDistance(robot, target);
-    const distTargetToCharger = this.manhattanDistance(target, map.chargingStation);
-
-    const totalEnergyRequired = (distToTarget + distTargetToCharger) * batteryLoss + actionCost;
-
-    return robot.battery > totalEnergyRequired;
-  }
-
-  getChargingAction(state) {
-    const { robot, map } = state;
-    if (this.isAtChargingStation(state)) {
-      return robot.battery < this.getMaxBattery(state) ? ACTIONS.CHARGE : ACTIONS.STAY;
+    if (samePosition(start, goal)) {
+      return [{ x: start.x, y: start.y }];
     }
-    this.actionQueue = []; 
-    return this.chooseMoveTowardTarget(state, map.chargingStation);
+
+    const maxDepth = state.map.grid_size_x * state.map.grid_size_y;
+    const avoidFirstStepKey = options.avoidFirstStepToPosition
+      ? this.positionKey(options.avoidFirstStepToPosition)
+      : null;
+
+    for (let depthLimit = 0; depthLimit <= maxDepth; depthLimit += 1) {
+      const path = [{ x: start.x, y: start.y }];
+      const pathSet = new Set([this.positionKey(start)]);
+      const result = this.depthLimitedTraverse(
+        state,
+        path,
+        pathSet,
+        depthLimit,
+        (currentPath) => {
+          const current = currentPath[currentPath.length - 1];
+
+          if (samePosition(current, goal)) {
+            return currentPath.map((position) => ({ ...position }));
+          }
+
+          return null;
+        },
+        avoidFirstStepKey
+      );
+
+      if (result) {
+        return result;
+      }
+    }
+
+    return null;
+  }
+
+  depthLimitedTraverse(state, path, pathSet, remainingDepth, onFound, avoidFirstStepKey = null) {
+    const current = path[path.length - 1];
+    this.recordNodeVisit({ position: current });
+    this.recordMemoryUsage(path.length + pathSet.size);
+
+    const found = onFound(path);
+
+    if (found) {
+      return found;
+    }
+
+    if (remainingDepth === 0) {
+      return null;
+    }
+
+    const candidates = [...this.getMoveCandidates(current)].reverse();
+
+    for (const candidate of candidates) {
+      const key = this.positionKey(candidate.position);
+
+      if (path.length === 1 && avoidFirstStepKey && key === avoidFirstStepKey) {
+        continue;
+      }
+
+      if (pathSet.has(key) || !this.canMoveTo(state, candidate.position)) {
+        continue;
+      }
+
+      path.push(candidate.position);
+      pathSet.add(key);
+      this.recordMemoryUsage(path.length + pathSet.size);
+
+      const result = this.depthLimitedTraverse(
+        state,
+        path,
+        pathSet,
+        remainingDepth - 1,
+        onFound,
+        avoidFirstStepKey
+      );
+
+      if (result) {
+        return result;
+      }
+
+      path.pop();
+      pathSet.delete(key);
+    }
+
+    return null;
   }
 }

@@ -20,7 +20,12 @@
         <div id="statusBadge" class="status-badge">Ready</div>
       </div>
 
-      <div id="gridMap" class="grid-map" aria-label="Grid map"></div>
+      <div class="map-layout" aria-label="Grid map with coordinates">
+        <div class="map-corner-label" aria-hidden="true"></div>
+        <div id="gridColumnLabels" class="map-axis map-axis-columns" aria-hidden="true"></div>
+        <div id="gridRowLabels" class="map-axis map-axis-rows" aria-hidden="true"></div>
+        <div id="gridMap" class="grid-map" aria-label="Grid map"></div>
+      </div>
 
       <div class="legend" aria-label="Map legend">
         <span><i class="legend-box robot"></i>Robot</span>
@@ -49,6 +54,36 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section class="history-panel metrics-panel" aria-label="Algorithm statistics">
+        <h2>Algorithm Statistics</h2>
+        <dl class="stats-list algorithm-metrics">
+          <div>
+            <dt>Runtime</dt>
+            <dd id="runtimeValue">0 ms</dd>
+          </div>
+          <div>
+            <dt>Visited nodes</dt>
+            <dd id="visitedNodesValue">0</dd>
+          </div>
+          <div>
+            <dt>Required memory</dt>
+            <dd id="requiredMemoryValue">0 nodes</dd>
+          </div>
+          <div>
+            <dt>Battery consumed</dt>
+            <dd id="batteryConsumedValue">0</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="history-panel trace-panel" aria-label="Algorithm traversal log">
+        <h2>Algorithm Trace</h2>
+        <p id="heuristicDescription" class="trace-help">Heuristic: not available.</p>
+        <div id="algorithmTrace" class="trace-log">
+          <p class="trace-empty">No trace yet.</p>
         </div>
       </section>
     </section>
@@ -92,7 +127,7 @@
           <button id="resetButton" type="button">Reset map</button>
           <button id="previousStepButton" type="button">Previous Step</button>
           <button id="nextStepButton" type="button">Next Step</button>
-          <button id="runButton" type="button">Run</button>
+          <button id="runButton" type="button">Run Algorithm</button>
           <button id="stopButton" type="button">Stop</button>
         </div>
 
@@ -103,6 +138,8 @@
           <button class="speed-button" type="button" data-speed="3">3x</button>
           <button class="speed-button" type="button" data-speed="5">5x</button>
         </div>
+
+        <button id="compareButton" class="secondary-button compare-button" type="button">Compare</button>
       </section>
 
       <section class="panel-block">

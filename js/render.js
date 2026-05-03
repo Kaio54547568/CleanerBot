@@ -11,17 +11,21 @@ const CELL_ICONS = Object.freeze({
 export class Renderer {
   constructor({
     gridElement,
-    batteryElement,
-    capacityElement,
-    positionElement,
-    doneElement,
-    stepsElement,
-    latestLogElement,
-    latestActionElement,
-    nextActionElement,
-    statusBadgeElement,
+    columnLabelsElement = null,
+    rowLabelsElement = null,
+    batteryElement = null,
+    capacityElement = null,
+    positionElement = null,
+    doneElement = null,
+    stepsElement = null,
+    latestLogElement = null,
+    latestActionElement = null,
+    nextActionElement = null,
+    statusBadgeElement = null,
   }) {
     this.gridElement = gridElement;
+    this.columnLabelsElement = columnLabelsElement;
+    this.rowLabelsElement = rowLabelsElement;
     this.batteryElement = batteryElement;
     this.capacityElement = capacityElement;
     this.positionElement = positionElement;
@@ -34,8 +38,37 @@ export class Renderer {
   }
 
   render(state, nextAction = null) {
+    this.renderCoordinateLabels(state);
     this.renderGrid(state);
     this.renderStats(state, nextAction);
+  }
+
+  renderCoordinateLabels(state) {
+    const { map } = state;
+
+    if (this.columnLabelsElement) {
+      this.columnLabelsElement.innerHTML = "";
+      this.columnLabelsElement.style.gridTemplateColumns = `repeat(${map.grid_size_x}, minmax(0, 1fr))`;
+
+      for (let x = 0; x < map.grid_size_x; x += 1) {
+        const label = document.createElement("div");
+        label.className = "axis-label";
+        label.textContent = getColumnLabel(x);
+        this.columnLabelsElement.appendChild(label);
+      }
+    }
+
+    if (this.rowLabelsElement) {
+      this.rowLabelsElement.innerHTML = "";
+      this.rowLabelsElement.style.gridTemplateRows = `repeat(${map.grid_size_y}, minmax(0, 1fr))`;
+
+      for (let y = 0; y < map.grid_size_y; y += 1) {
+        const label = document.createElement("div");
+        label.className = "axis-label";
+        label.textContent = `${y + 1}`;
+        this.rowLabelsElement.appendChild(label);
+      }
+    }
   }
 
   renderGrid(state) {
@@ -47,17 +80,18 @@ export class Renderer {
 
     for (let y = 0; y < map.grid_size_y; y += 1) {
       for (let x = 0; x < map.grid_size_x; x += 1) {
+        const position = { x, y };
         const cell = document.createElement("div");
         cell.className = "cell";
-        cell.title = `(${x}, ${y})`;
+        cell.title = `${formatGridCoordinate(position)} (${x}, ${y})`;
         cell.dataset.x = `${x}`;
         cell.dataset.y = `${y}`;
 
-        const hasObstacle = map.obstaclePositions.some((position) => position.x === x && position.y === y);
-        const hasTrash = map.trashPositions.some((position) => position.x === x && position.y === y);
-        const hasCharger = samePosition({ x, y }, map.chargingStation);
-        const hasTrashCan = samePosition({ x, y }, map.trashCan);
-        const hasRobot = samePosition({ x, y }, robot);
+        const hasObstacle = map.obstaclePositions.some((item) => samePosition(item, position));
+        const hasTrash = map.trashPositions.some((item) => samePosition(item, position));
+        const hasCharger = samePosition(position, map.chargingStation);
+        const hasTrashCan = samePosition(position, map.trashCan);
+        const hasRobot = samePosition(position, robot);
 
         if (hasObstacle) {
           cell.classList.add("obstacle");
@@ -93,24 +127,40 @@ export class Renderer {
 
   renderStats(state, nextAction) {
     const { robot, map } = state;
-    this.batteryElement.textContent = `${formatNumber(robot.battery)}%`;
-    this.capacityElement.textContent = `${robot.capacity} / ${robot.maxCapacity}`;
-    this.positionElement.textContent = `(${robot.x}, ${robot.y})`;
-    this.doneElement.textContent = map.done ? "true" : "false";
-    this.stepsElement.textContent = `${state.steps}`;
-    this.latestActionElement.textContent = formatAction(state.latestAction);
-    this.nextActionElement.textContent = formatAction(nextAction);
-    this.latestLogElement.textContent = state.latestLog;
-    this.statusBadgeElement.textContent = map.done ? "Done" : "Ready";
+    setText(this.batteryElement, `${formatNumber(robot.battery)}%`);
+    setText(this.capacityElement, `${robot.capacity} / ${robot.maxCapacity}`);
+    setText(this.positionElement, `${formatGridCoordinate(robot)} (${robot.x}, ${robot.y})`);
+    setText(this.doneElement, map.done ? "true" : "false");
+    setText(this.stepsElement, `${state.steps}`);
+    setText(this.latestActionElement, formatAction(state.latestAction));
+    setText(this.nextActionElement, formatAction(nextAction));
+    setText(this.latestLogElement, state.latestLog);
+    setText(this.statusBadgeElement, map.done ? "Done" : "Ready");
   }
 }
 
-function formatAction(action) {
+export function formatAction(action) {
   return action === null || action === undefined ? "-" : `${action}`;
 }
 
-function formatNumber(value) {
+export function formatNumber(value) {
   return Number.isInteger(value) ? `${value}` : `${Number(value.toFixed(2))}`;
+}
+
+export function getColumnLabel(index) {
+  let current = index;
+  let label = "";
+
+  do {
+    label = String.fromCharCode(65 + (current % 26)) + label;
+    current = Math.floor(current / 26) - 1;
+  } while (current >= 0);
+
+  return label;
+}
+
+export function formatGridCoordinate(position) {
+  return `${getColumnLabel(position.x)}${position.y + 1}`;
 }
 
 function getCellIcon({ hasRobot, hasObstacle, hasTrash, hasCharger, hasTrashCan }) {
@@ -129,4 +179,10 @@ function createIconElement({ src, alt }) {
   icon.alt = alt;
   icon.draggable = false;
   return icon;
+}
+
+function setText(element, value) {
+  if (element) {
+    element.textContent = value;
+  }
 }
