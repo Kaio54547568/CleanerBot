@@ -4,6 +4,7 @@ import { samePosition } from "../environment.js";
 const DEFAULT_MAX_BATTERY = 100;
 const DEFAULT_BATTERY_LOSS = 1;
 const DEFAULT_ACTION_COST = 1;
+const DEFAULT_TRACE_LIMIT = 1000;
 
 export class BaseAlgorithm {
   constructor() {
@@ -28,33 +29,46 @@ export class BaseAlgorithm {
   }
 
   resetMetrics() {
-    this.metrics = {
-      runtimeMs: 0,
-      visitedNodes: 0,
-      peakMemory: 0,
-      batteryConsumed: 0,
-      trace: [],
-      heuristicDescription: `${this.name} does not use heuristic.`,
-    };
+    this.metrics = createEmptyMetrics(this.name);
   }
 
   getMetrics() {
-    return cloneMetrics(this.metrics);
+    return {
+      ...this.getMetricSummary(),
+      trace: this.getTraceSlice(),
+    };
   }
 
   getMetricsSnapshot() {
-    return this.getMetrics();
+    return cloneMetrics(this.metrics);
   }
 
   restoreMetrics(snapshot) {
-    this.metrics = snapshot ? cloneMetrics(snapshot) : {
-      runtimeMs: 0,
-      visitedNodes: 0,
-      peakMemory: 0,
-      batteryConsumed: 0,
-      trace: [],
-      heuristicDescription: `${this.name} does not use heuristic.`,
+    this.metrics = snapshot
+      ? normalizeMetrics(snapshot, this.name)
+      : createEmptyMetrics(this.name);
+  }
+
+  getMetricSummary() {
+    const traceLength = this.metrics.trace.length;
+
+    return {
+      runtimeMs: this.metrics.runtimeMs,
+      visitedNodes: this.metrics.visitedNodes,
+      peakMemory: this.metrics.peakMemory,
+      batteryConsumed: this.metrics.batteryConsumed,
+      heuristicDescription: this.metrics.heuristicDescription,
+      traceLength,
+      traceLimit: this.metrics.traceLimit,
+      traceDropped: Math.max(0, this.metrics.visitedNodes - traceLength),
     };
+  }
+
+  getTraceSlice(limit = this.metrics.traceLimit) {
+    const orderedTrace = this.getOrderedTrace();
+    const safeLimit = clampTraceLimit(limit, this.metrics.traceLimit);
+    const startIndex = Math.max(0, orderedTrace.length - safeLimit);
+    return cloneTraceEntries(orderedTrace.slice(startIndex));
   }
 
   setHeuristicDescription(description) {
@@ -69,10 +83,11 @@ export class BaseAlgorithm {
     const hasCost = Number.isFinite(g);
     const hasHeuristic = Number.isFinite(h);
 
-    // Store raw g/h/f values so the UI can render the traversal trace and formulas.
+    // Keep only a bounded trace window while visitedNodes remains exact.
     this.metrics.visitedNodes += 1;
-    this.metrics.trace.push({
-      order: this.metrics.trace.length + 1,
+
+    const entry = {
+      order: this.metrics.visitedNodes,
       position: { x: position.x, y: position.y },
       label: this.formatCoordinateLabel(position),
       goal: goal ? { x: goal.x, y: goal.y, label: this.formatCoordinateLabel(goal) } : null,
@@ -80,7 +95,9 @@ export class BaseAlgorithm {
       h: hasHeuristic ? h : null,
       f: hasCost && hasHeuristic ? g + h : null,
       note,
-    });
+    };
+
+    this.storeTraceEntry(entry);
   }
 
   recordMemoryUsage(nodeCount) {
@@ -200,6 +217,36 @@ export class BaseAlgorithm {
 
     return bestMove ? bestMove.action : ACTIONS.STAY;
   }
+
+  storeTraceEntry(entry) {
+    const limit = this.metrics.traceLimit;
+
+    if (limit <= 0) {
+      return;
+    }
+
+    if (this.metrics.trace.length < limit) {
+      this.metrics.trace.push(entry);
+      return;
+    }
+
+    this.metrics.trace[this.metrics.traceWriteIndex] = entry;
+    this.metrics.traceWriteIndex =
+      (this.metrics.traceWriteIndex + 1) % limit;
+  }
+
+  getOrderedTrace() {
+    const { trace, traceLimit, traceWriteIndex } = this.metrics;
+
+    if (trace.length < traceLimit || traceWriteIndex === 0) {
+      return trace;
+    }
+
+    return [
+      ...trace.slice(traceWriteIndex),
+      ...trace.slice(0, traceWriteIndex),
+    ];
+  }
 }
 
 function getNow() {
@@ -212,4 +259,68 @@ function getNow() {
 
 function cloneMetrics(metrics) {
   return JSON.parse(JSON.stringify(metrics));
+}
+
+function createEmptyMetrics(name) {
+  return {
+    runtimeMs: 0,
+    visitedNodes: 0,
+    peakMemory: 0,
+    batteryConsumed: 0,
+    trace: [],
+    traceLimit: DEFAULT_TRACE_LIMIT,
+    traceWriteIndex: 0,
+    heuristicDescription: `${name} does not use heuristic.`,
+  };
+}
+
+function normalizeMetrics(metrics, name) {
+  const normalized = {
+    ...createEmptyMetrics(name),
+    ...cloneMetrics(metrics),
+  };
+
+  normalized.traceLimit = clampTraceLimit(
+    normalized.traceLimit,
+    DEFAULT_TRACE_LIMIT
+  );
+
+  if (normalized.traceLimit <= 0) {
+    normalized.trace = [];
+    normalized.traceWriteIndex = 0;
+    return normalized;
+  }
+
+  normalized.trace = Array.isArray(normalized.trace)
+    ? normalized.trace.slice(-normalized.traceLimit)
+    : [];
+  normalized.traceWriteIndex = Number.isInteger(normalized.traceWriteIndex)
+    ? normalized.traceWriteIndex
+    : 0;
+
+  if (normalized.trace.length < normalized.traceLimit) {
+    normalized.traceWriteIndex = 0;
+  } else {
+    normalized.traceWriteIndex %= normalized.traceLimit;
+  }
+
+  return normalized;
+}
+
+function clampTraceLimit(value, fallback) {
+  const numericValue = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(numericValue)) {
+    return fallback;
+  }
+
+  return Math.min(fallback, Math.max(0, numericValue));
+}
+
+function cloneTraceEntries(entries) {
+  return entries.map((entry) => ({
+    ...entry,
+    position: entry.position ? { ...entry.position } : null,
+    goal: entry.goal ? { ...entry.goal } : null,
+  }));
 }

@@ -5,6 +5,7 @@ import { Renderer, formatAction, formatGridCoordinate, formatNumber } from "./re
 import { algorithmRegistry, createAlgorithm } from "./algorithms/registry.js";
 
 const COMPARE_STATE_STORAGE_KEY = "cleanerbot.compare.initialState";
+const TRACE_RENDER_LIMIT = 1000;
 
 document.body.classList.add("js-ready");
 
@@ -63,8 +64,6 @@ const renderer = new Renderer({
 });
 
 let simulator = null;
-let renderedTraceCount = 0;
-let renderedHeuristicDescription = "";
 let renderedTraceSignature = "";
 
 function getMapConfigFromInputs() {
@@ -280,7 +279,7 @@ function renderPositionHistory() {
 }
 
 function renderAlgorithmMetrics() {
-  const metrics = simulator?.getAlgorithmMetrics();
+  const metrics = simulator?.getAlgorithmMetricSummary();
 
   if (!metrics) {
     elements.runtimeValue.textContent = "0 ms";
@@ -297,43 +296,41 @@ function renderAlgorithmMetrics() {
 }
 
 function renderAlgorithmTrace() {
-  const metrics = simulator?.getAlgorithmMetrics();
-  const trace = metrics?.trace ?? [];
+  const metrics = simulator?.getAlgorithmMetricSummary();
+  const trace = simulator?.getAlgorithmTraceSlice(TRACE_RENDER_LIMIT) ?? [];
   const heuristicDescription = metrics?.heuristicDescription ?? "Heuristic: not available.";
-  const traceSignature = getTraceSignature(trace, heuristicDescription);
+  const traceSignature = getTraceSignature(trace, heuristicDescription, metrics);
 
-  if (
-    trace.length < renderedTraceCount ||
-    heuristicDescription !== renderedHeuristicDescription ||
-    (trace.length === renderedTraceCount && traceSignature !== renderedTraceSignature)
-  ) {
-    elements.algorithmTrace.innerHTML = "";
-    renderedTraceCount = 0;
+  if (traceSignature === renderedTraceSignature) {
+    return;
   }
 
   elements.heuristicDescription.textContent = heuristicDescription;
-  renderedHeuristicDescription = heuristicDescription;
+  elements.algorithmTrace.innerHTML = "";
 
   if (trace.length === 0) {
-    elements.algorithmTrace.innerHTML = "";
     const empty = document.createElement("p");
     empty.className = "trace-empty";
     empty.textContent = "No trace yet.";
     elements.algorithmTrace.appendChild(empty);
-    renderedTraceCount = 0;
-    renderedTraceSignature = "";
+    renderedTraceSignature = traceSignature;
     return;
   }
 
-  if (renderedTraceCount === 0) {
-    elements.algorithmTrace.innerHTML = "";
+  const fragment = document.createDocumentFragment();
+
+  if (metrics && metrics.visitedNodes > trace.length) {
+    const summary = document.createElement("p");
+    summary.className = "trace-empty";
+    summary.textContent = `Showing latest ${trace.length} of ${metrics.visitedNodes} visits.`;
+    fragment.appendChild(summary);
   }
 
-  trace.slice(renderedTraceCount).forEach((entry) => {
-    elements.algorithmTrace.appendChild(createTraceEntry(entry));
+  trace.forEach((entry) => {
+    fragment.appendChild(createTraceEntry(entry));
   });
 
-  renderedTraceCount = trace.length;
+  elements.algorithmTrace.appendChild(fragment);
   renderedTraceSignature = traceSignature;
 }
 
@@ -441,15 +438,16 @@ function clampInteger(value, min, max) {
   return Math.min(max, Math.max(min, numberValue));
 }
 
-function getTraceSignature(trace, heuristicDescription) {
+function getTraceSignature(trace, heuristicDescription, metrics = null) {
   const firstEntry = trace[0];
   const lastEntry = trace[trace.length - 1];
 
   return [
     heuristicDescription,
+    metrics?.visitedNodes ?? 0,
     trace.length,
-    firstEntry?.label ?? "",
-    lastEntry?.label ?? "",
+    firstEntry?.order ?? "",
+    lastEntry?.order ?? "",
     lastEntry?.g ?? "",
     lastEntry?.h ?? "",
     lastEntry?.f ?? "",

@@ -1,3 +1,5 @@
+const MAX_POSITION_HISTORY_ENTRIES = 1000;
+
 export class Simulator {
   constructor({ environment, algorithm, onStateChange, tickMs = 400 }) {
     this.environment = environment;
@@ -66,6 +68,7 @@ export class Simulator {
       Math.max(0, previousState.robot.battery - nextState.robot.battery)
     );
     this.positionHistory.push(this.createPositionHistoryEntry(nextState));
+    this.trimPositionHistory();
 
     if (nextState.map.done) {
       this.stop();
@@ -142,6 +145,14 @@ export class Simulator {
     return this.positionHistory.map((entry) => ({ ...entry }));
   }
 
+  getAlgorithmMetricSummary() {
+    return this.algorithm?.getMetricSummary() ?? null;
+  }
+
+  getAlgorithmTraceSlice(limit) {
+    return this.algorithm?.getTraceSlice(limit) ?? [];
+  }
+
   getAlgorithmMetrics() {
     return this.algorithm?.getMetrics() ?? null;
   }
@@ -177,5 +188,15 @@ export class Simulator {
 
   isRunning() {
     return this.intervalId !== null;
+  }
+
+  trimPositionHistory() {
+    if (this.positionHistory.length <= MAX_POSITION_HISTORY_ENTRIES) {
+      return;
+    }
+
+    this.positionHistory = this.positionHistory.slice(
+      this.positionHistory.length - MAX_POSITION_HISTORY_ENTRIES
+    );
   }
 }
