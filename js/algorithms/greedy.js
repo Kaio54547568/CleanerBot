@@ -30,16 +30,19 @@ export class GreedyAlgorithm extends BaseAlgorithm {
     this.recordMemoryUsage(1);
 
     if (this.isAtTrashCan(state) && robot.capacity > 0) {
+      this.setCurrentTarget(map.trashCan);
       return this.hasEnoughBatteryForTarget(state, map.trashCan)
         ? ACTIONS.LET_TRASH_OUT
         : this.getChargingAction(state);
     }
 
     if (this.isAtChargingStation(state) && this.shouldCharge(state)) {
+      this.setCurrentTarget(map.chargingStation);
       return ACTIONS.CHARGE;
     }
 
     if (this.hasTrashAtRobot(state) && robot.capacity < robot.maxCapacity) {
+      this.setCurrentTarget(robot);
       return this.hasEnoughBatteryForTarget(state, robot)
         ? ACTIONS.SUCK_TRASH
         : this.getChargingAction(state);
@@ -68,6 +71,8 @@ export class GreedyAlgorithm extends BaseAlgorithm {
       return this.getChargingAction(state);
     }
 
+    this.setCurrentTarget(target);
+
     if (samePosition(robot, target)) {
       return this.getActionAtTarget(state, target);
     }
@@ -81,6 +86,7 @@ export class GreedyAlgorithm extends BaseAlgorithm {
 
   getChargingAction(state) {
     const { robot, map } = state;
+    this.setCurrentTarget(map.chargingStation);
 
     if (this.isAtChargingStation(state)) {
       return robot.battery < this.getMaxBattery(state)

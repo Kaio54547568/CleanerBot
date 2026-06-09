@@ -143,14 +143,18 @@ function createCompareSlot(sharedInitialState, definition, cardElements) {
       algorithm,
       onStateChange: (state) => {
         const nextAction = !state.map.done ? slot.simulator.peekNextAction() : null;
-        slot.renderer.render(state, nextAction);
+        slot.renderer.render(state, nextAction, slot.simulator.getCurrentTarget());
         renderCompareMetrics(slot);
       },
       tickMs: 300,
     });
 
     const initialState = environment.getState();
-    slot.renderer.render(initialState, slot.simulator.peekNextAction());
+    slot.renderer.render(
+      initialState,
+      slot.simulator.peekNextAction(),
+      slot.simulator.getCurrentTarget()
+    );
     renderCompareMetrics(slot);
     return slot;
   });

@@ -217,6 +217,13 @@ h3 {
   color: #0f6b45;
 }
 
+.cell.trash.current-target {
+  background: #fde68a;
+  color: #854d0e;
+  outline: 3px solid #f59e0b;
+  outline-offset: -3px;
+}
+
 .cell.obstacle {
   background: var(--obstacle);
   color: white;
@@ -286,6 +293,11 @@ h3 {
 
 .legend-box.trash {
   background: var(--trash);
+}
+
+.legend-box.current-target {
+  background: #fde68a;
+  border: 2px solid #f59e0b;
 }
 
 .legend-box.obstacle {

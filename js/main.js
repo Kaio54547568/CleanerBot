@@ -3,6 +3,7 @@ import { simulationStateToPlain } from "./models.js";
 import { Simulator } from "./simulator.js";
 import { Renderer, formatAction, formatGridCoordinate, formatNumber } from "./render.js";
 import { algorithmRegistry, createAlgorithm } from "./algorithms/registry.js";
+import { createAlgorithmComparisonMap10x10 } from "./sampleMaps.js";
 
 const COMPARE_STATE_STORAGE_KEY = "cleanerbot.compare.initialState";
 const HISTORY_RENDER_LIMIT = 20;
@@ -23,6 +24,7 @@ const elements = {
   maxCapacityInput: document.getElementById("maxCapacityInput"),
   batteryLossInput: document.getElementById("batteryLossInput"),
   generateButton: document.getElementById("generateButton"),
+  loadDemoMapButton: document.getElementById("loadDemoMapButton"),
   resetButton: document.getElementById("resetButton"),
   previousStepButton: document.getElementById("previousStepButton"),
   nextStepButton: document.getElementById("nextStepButton"),
@@ -107,6 +109,7 @@ function updateButtonState() {
   elements.previousStepButton.disabled = !isReady || isRunning || !simulator.canStepBack();
   elements.nextStepButton.disabled = !isReady || isRunning;
   elements.generateButton.disabled = !isReady || isRunning;
+  elements.loadDemoMapButton.disabled = !isReady || isRunning;
   elements.resetButton.disabled = !isReady;
   elements.compareButton.disabled = !isReady || isRunning;
   elements.algorithmSelect.disabled = !isReady || isRunning;
@@ -132,7 +135,7 @@ function syncConfigFromInputs() {
 
 function handleStateChange(state) {
   const nextAction = simulator && !state.map.done ? simulator.peekNextAction() : null;
-  renderer.render(state, nextAction);
+  renderer.render(state, nextAction, simulator?.getCurrentTarget());
   renderPositionHistory();
   renderAlgorithmMetrics();
   renderAlgorithmTrace();
@@ -161,6 +164,12 @@ async function bindEvents() {
 
   elements.generateButton.addEventListener("click", () => {
     simulator.generate(getMapConfigFromInputs());
+    updateInputsFromState(environment.getInitialState());
+    updateButtonState();
+  });
+
+  elements.loadDemoMapButton.addEventListener("click", () => {
+    simulator.loadState(createAlgorithmComparisonMap10x10());
     updateInputsFromState(environment.getInitialState());
     updateButtonState();
   });
@@ -221,7 +230,7 @@ async function bindEvents() {
     simulator.clearNextActionCache();
     simulator.clearHistory();
     simulator.resetPositionHistory(nextState, null);
-    renderer.render(nextState, simulator.peekNextAction());
+    renderer.render(nextState, simulator.peekNextAction(), simulator.getCurrentTarget());
     renderPositionHistory();
     renderAlgorithmMetrics();
     renderAlgorithmTrace();

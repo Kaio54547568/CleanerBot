@@ -36,6 +36,16 @@ export class Simulator {
     this.onStateChange(state);
   }
 
+  loadState(state) {
+    this.stop();
+    this.algorithm.reset();
+    this.clearNextActionCache();
+    this.clearHistory();
+    const nextState = this.environment.loadState(state);
+    this.resetPositionHistory(nextState);
+    this.onStateChange(nextState);
+  }
+
   updateConfig(config) {
     this.stop();
     this.algorithm.reset();
@@ -106,6 +116,10 @@ export class Simulator {
     }
 
     return this.cachedNextAction;
+  }
+
+  getCurrentTarget() {
+    return this.algorithm?.getCurrentTarget?.() ?? null;
   }
 
   clearNextActionCache() {
