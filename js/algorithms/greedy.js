@@ -2,6 +2,10 @@ import { ACTIONS } from "../models.js";
 import { samePosition } from "../environment.js";
 import { BaseAlgorithm } from "./baseAlgorithm.js";
 
+const VISIT_PENALTY = 3;
+const BACKTRACK_PENALTY = 10;
+const EPSILON = 1e-9;
+
 export class GreedyAlgorithm extends BaseAlgorithm {
   constructor() {
     super();
@@ -11,11 +15,17 @@ export class GreedyAlgorithm extends BaseAlgorithm {
 
   reset() {
     super.reset();
-    this.setHeuristicDescription("Greedy does not use graph-search heuristic trace.");
+    this.visitCounts = new Map();
+    this.currentPosition = null;
+    this.previousPosition = null;
+    this.setHeuristicDescription(
+      `Greedy score = Manhattan distance + visits * ${VISIT_PENALTY} + backtrack penalty ${BACKTRACK_PENALTY}.`
+    );
   }
 
   computeNextAction(state) {
     const { robot, map } = state;
+    this.rememberPosition(robot);
     this.recordNodeVisit({ position: state.robot });
     this.recordMemoryUsage(1);
 
@@ -138,6 +148,136 @@ export class GreedyAlgorithm extends BaseAlgorithm {
     return ACTIONS.STAY;
   }
 
+  chooseMoveTowardTarget(state, target) {
+    if (samePosition(target, state.map.chargingStation)) {
+      return this.chooseShortestPathMoveToTarget(state, target);
+    }
+
+    const candidates = this.getMoveCandidates(state.robot)
+      .filter((candidate) => this.canMoveTo(state, candidate.position))
+      .filter((candidate) =>
+        this.canMoveAndKeepChargingReserve(state, candidate.position)
+      )
+      .map((candidate, index) => {
+        const distance = this.manhattanDistance(candidate.position, target);
+        const visits = this.getVisitCount(candidate.position);
+        const backtrackPenalty =
+          this.previousPosition &&
+          samePosition(candidate.position, this.previousPosition) &&
+          !samePosition(candidate.position, target)
+            ? BACKTRACK_PENALTY
+            : 0;
+
+        return {
+          ...candidate,
+          index,
+          distance,
+          visits,
+          score: distance + visits * VISIT_PENALTY + backtrackPenalty,
+        };
+      });
+
+    if (candidates.length === 0) {
+      return ACTIONS.STAY;
+    }
+
+    candidates.sort((a, b) => {
+      return (
+        a.score - b.score ||
+        a.distance - b.distance ||
+        a.visits - b.visits ||
+        a.index - b.index
+      );
+    });
+
+    return candidates[0].action;
+  }
+
+  chooseShortestPathMoveToTarget(state, target) {
+    const path = this.findShortestPath(state, state.robot, target);
+
+    if (!path || path.length < 2) {
+      return ACTIONS.STAY;
+    }
+
+    if (!this.canMoveAndKeepChargingReserve(state, path[1])) {
+      return ACTIONS.STAY;
+    }
+
+    return this.getActionForStep(path[0], path[1]);
+  }
+
+  getActionForStep(fromPosition, toPosition) {
+    if (toPosition.x === fromPosition.x && toPosition.y === fromPosition.y - 1) {
+      return ACTIONS.UP;
+    }
+
+    if (toPosition.x === fromPosition.x && toPosition.y === fromPosition.y + 1) {
+      return ACTIONS.DOWN;
+    }
+
+    if (toPosition.x === fromPosition.x - 1 && toPosition.y === fromPosition.y) {
+      return ACTIONS.LEFT;
+    }
+
+    if (toPosition.x === fromPosition.x + 1 && toPosition.y === fromPosition.y) {
+      return ACTIONS.RIGHT;
+    }
+
+    return ACTIONS.STAY;
+  }
+
+  canMoveAndKeepChargingReserve(state, nextPosition) {
+    const { robot, map } = state;
+    const batteryLoss = this.getBatteryLoss(state);
+
+    if (robot.battery + EPSILON < batteryLoss) {
+      return false;
+    }
+
+    const batteryAfterMove = robot.battery - batteryLoss;
+
+    if (samePosition(nextPosition, map.chargingStation)) {
+      return batteryAfterMove + EPSILON >= 0;
+    }
+
+    const distanceToChargingStation = this.getShortestPathDistance(
+      state,
+      nextPosition,
+      map.chargingStation
+    );
+
+    if (!Number.isFinite(distanceToChargingStation)) {
+      return false;
+    }
+
+    return (
+      batteryAfterMove + EPSILON >=
+      distanceToChargingStation * batteryLoss
+    );
+  }
+
+  rememberPosition(position) {
+    if (this.currentPosition && samePosition(this.currentPosition, position)) {
+      return;
+    }
+
+    this.previousPosition = this.currentPosition
+      ? { ...this.currentPosition }
+      : null;
+    this.currentPosition = { x: position.x, y: position.y };
+    const key = this.positionKey(position);
+    this.visitCounts.set(key, this.getVisitCount(position) + 1);
+  }
+
+  getVisitCount(position) {
+    return this.visitCounts.get(this.positionKey(position)) ?? 0;
+  }
+
+  positionKey(position) {
+    return `${position.x},${position.y}`;
+  }
+
   shouldCharge(state) {
     const { robot } = state;
     const maxBattery = this.getMaxBattery(state);
@@ -178,18 +318,31 @@ export class GreedyAlgorithm extends BaseAlgorithm {
     const { robot, map } = state;
     const batteryLoss = this.getBatteryLoss(state);
     const actionCost = this.getActionCost(state);
+    const distanceToTarget = this.getShortestPathDistance(state, fromPosition, target);
 
-    let requiredBattery =
-      this.manhattanDistance(fromPosition, target) * batteryLoss;
+    if (!Number.isFinite(distanceToTarget)) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    let requiredBattery = distanceToTarget * batteryLoss;
 
     if (samePosition(target, map.chargingStation)) {
       return requiredBattery;
     }
 
     if (samePosition(target, map.trashCan) && robot.capacity > 0) {
+      const distanceToChargingStation = this.getShortestPathDistance(
+        state,
+        target,
+        map.chargingStation
+      );
+
+      if (!Number.isFinite(distanceToChargingStation)) {
+        return Number.POSITIVE_INFINITY;
+      }
+
       requiredBattery += actionCost;
-      requiredBattery +=
-        this.manhattanDistance(target, map.chargingStation) * batteryLoss;
+      requiredBattery += distanceToChargingStation * batteryLoss;
       return requiredBattery;
     }
 
@@ -202,22 +355,105 @@ export class GreedyAlgorithm extends BaseAlgorithm {
       const willBeFull = robot.capacity + 1 >= robot.maxCapacity;
 
       if (willBeFull) {
-        requiredBattery +=
-          this.manhattanDistance(target, map.trashCan) * batteryLoss;
+        const distanceToTrashCan = this.getShortestPathDistance(
+          state,
+          target,
+          map.trashCan
+        );
+        const distanceTrashCanToChargingStation = this.getShortestPathDistance(
+          state,
+          map.trashCan,
+          map.chargingStation
+        );
+
+        if (
+          !Number.isFinite(distanceToTrashCan) ||
+          !Number.isFinite(distanceTrashCanToChargingStation)
+        ) {
+          return Number.POSITIVE_INFINITY;
+        }
+
+        requiredBattery += distanceToTrashCan * batteryLoss;
         requiredBattery += actionCost;
-        requiredBattery +=
-          this.manhattanDistance(map.trashCan, map.chargingStation) *
-          batteryLoss;
+        requiredBattery += distanceTrashCanToChargingStation * batteryLoss;
       } else {
-        requiredBattery +=
-          this.manhattanDistance(target, map.chargingStation) * batteryLoss;
+        const distanceToChargingStation = this.getShortestPathDistance(
+          state,
+          target,
+          map.chargingStation
+        );
+
+        if (!Number.isFinite(distanceToChargingStation)) {
+          return Number.POSITIVE_INFINITY;
+        }
+
+        requiredBattery += distanceToChargingStation * batteryLoss;
       }
 
       return requiredBattery;
     }
 
-    requiredBattery +=
-      this.manhattanDistance(target, map.chargingStation) * batteryLoss;
+    const distanceToChargingStation = this.getShortestPathDistance(
+      state,
+      target,
+      map.chargingStation
+    );
+
+    if (!Number.isFinite(distanceToChargingStation)) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    requiredBattery += distanceToChargingStation * batteryLoss;
     return requiredBattery;
+  }
+
+  getShortestPathDistance(state, fromPosition, target) {
+    const path = this.findShortestPath(state, fromPosition, target);
+
+    if (!path) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    return Math.max(0, path.length - 1);
+  }
+
+  findShortestPath(state, fromPosition, target) {
+    if (!fromPosition || !target) {
+      return null;
+    }
+
+    if (samePosition(fromPosition, target)) {
+      return [{ x: fromPosition.x, y: fromPosition.y }];
+    }
+
+    const start = { x: fromPosition.x, y: fromPosition.y };
+    const queue = [{ position: start, path: [start] }];
+    const visited = new Set([this.positionKey(start)]);
+
+    while (queue.length > 0) {
+      const currentNode = queue.shift();
+
+      for (const candidate of this.getMoveCandidates(currentNode.position)) {
+        const key = this.positionKey(candidate.position);
+
+        if (visited.has(key) || !this.canMoveTo(state, candidate.position)) {
+          continue;
+        }
+
+        const nextPath = [...currentNode.path, candidate.position];
+
+        if (samePosition(candidate.position, target)) {
+          return nextPath;
+        }
+
+        visited.add(key);
+        queue.push({
+          position: candidate.position,
+          path: nextPath,
+        });
+      }
+    }
+
+    return null;
   }
 }

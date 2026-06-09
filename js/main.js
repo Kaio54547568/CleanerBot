@@ -5,7 +5,8 @@ import { Renderer, formatAction, formatGridCoordinate, formatNumber } from "./re
 import { algorithmRegistry, createAlgorithm } from "./algorithms/registry.js";
 
 const COMPARE_STATE_STORAGE_KEY = "cleanerbot.compare.initialState";
-const TRACE_RENDER_LIMIT = 1000;
+const HISTORY_RENDER_LIMIT = 20;
+const TRACE_RENDER_LIMIT = 20;
 
 document.body.classList.add("js-ready");
 
@@ -37,6 +38,8 @@ const elements = {
   latestLog: document.getElementById("latestLog"),
   latestActionValue: document.getElementById("latestActionValue"),
   nextActionValue: document.getElementById("nextActionValue"),
+  positionHistoryWrap: document.getElementById("positionHistoryWrap"),
+  positionHistorySummary: document.getElementById("positionHistorySummary"),
   positionHistoryBody: document.getElementById("positionHistoryBody"),
   runtimeValue: document.getElementById("runtimeValue"),
   visitedNodesValue: document.getElementById("visitedNodesValue"),
@@ -44,6 +47,8 @@ const elements = {
   batteryConsumedValue: document.getElementById("batteryConsumedValue"),
   heuristicDescription: document.getElementById("heuristicDescription"),
   algorithmTrace: document.getElementById("algorithmTrace"),
+  tracePopup: document.getElementById("tracePopup"),
+  traceToggleButton: document.getElementById("traceToggleButton"),
   statusBadge: document.getElementById("statusBadge"),
 };
 
@@ -135,6 +140,19 @@ function handleStateChange(state) {
 }
 
 async function bindEvents() {
+  elements.traceToggleButton.addEventListener("click", () => {
+    setTracePopupOpen(elements.tracePopup.hidden);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || elements.tracePopup.hidden) {
+      return;
+    }
+
+    setTracePopupOpen(false);
+    elements.traceToggleButton.focus();
+  });
+
   elements.algorithmSelect.addEventListener("change", async () => {
     simulator.setAlgorithm(await createSelectedAlgorithm());
     handleStateChange(environment.getState());
@@ -248,8 +266,12 @@ function renderCellInspection(cell) {
 }
 
 function renderPositionHistory() {
-  const history = simulator ? simulator.getPositionHistory() : [];
+  const history = simulator
+    ? simulator.getPositionHistorySlice(HISTORY_RENDER_LIMIT)
+    : [];
+  const totalHistoryEntries = simulator ? simulator.getPositionHistoryCount() : 0;
   elements.positionHistoryBody.innerHTML = "";
+  elements.positionHistorySummary.textContent = "";
 
   if (history.length === 0) {
     const row = document.createElement("tr");
@@ -259,6 +281,11 @@ function renderPositionHistory() {
     row.appendChild(cell);
     elements.positionHistoryBody.appendChild(row);
     return;
+  }
+
+  if (totalHistoryEntries > history.length) {
+    elements.positionHistorySummary.textContent =
+      `Showing latest ${history.length} of ${totalHistoryEntries} positions.`;
   }
 
   history.forEach((entry) => {
@@ -276,6 +303,8 @@ function renderPositionHistory() {
     });
     elements.positionHistoryBody.appendChild(row);
   });
+
+  scrollToBottom(elements.positionHistoryWrap);
 }
 
 function renderAlgorithmMetrics() {
@@ -332,6 +361,7 @@ function renderAlgorithmTrace() {
 
   elements.algorithmTrace.appendChild(fragment);
   renderedTraceSignature = traceSignature;
+  scrollToBottom(elements.algorithmTrace);
 }
 
 function createTraceEntry(entry) {
@@ -365,6 +395,20 @@ function createTraceLine(text) {
   line.className = "trace-line";
   line.textContent = text;
   return line;
+}
+
+function scrollToBottom(element) {
+  if (!element) {
+    return;
+  }
+
+  element.scrollTop = element.scrollHeight;
+}
+
+function setTracePopupOpen(isOpen) {
+  elements.tracePopup.hidden = !isOpen;
+  elements.traceToggleButton.textContent = isOpen ? "Close" : "Expand";
+  elements.traceToggleButton.setAttribute("aria-expanded", `${isOpen}`);
 }
 
 function saveCompareState() {

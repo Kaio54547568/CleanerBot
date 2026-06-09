@@ -8,36 +8,11 @@
 </head>
 <body>
   <main class="app-shell">
-    <section class="map-section" aria-label="Simulation map">
-      <div class="section-header">
-        <div>
-          <h1>CleanerBot Simulator</h1>
-          <p>Skeleton project cho robot hut bui va cac thuat toan tim kiem.</p>
-          <p id="moduleWarning" class="module-warning">
-            JavaScript module chua chay. Hay mo bang Live Server thay vi mo truc tiep file HTML.
-          </p>
-        </div>
-        <div id="statusBadge" class="status-badge">Ready</div>
-      </div>
-
-      <div class="map-layout" aria-label="Grid map with coordinates">
-        <div class="map-corner-label" aria-hidden="true"></div>
-        <div id="gridColumnLabels" class="map-axis map-axis-columns" aria-hidden="true"></div>
-        <div id="gridRowLabels" class="map-axis map-axis-rows" aria-hidden="true"></div>
-        <div id="gridMap" class="grid-map" aria-label="Grid map"></div>
-      </div>
-
-      <div class="legend" aria-label="Map legend">
-        <span><i class="legend-box robot"></i>Robot</span>
-        <span><i class="legend-box trash"></i>Trash</span>
-        <span><i class="legend-box obstacle"></i>Obstacle</span>
-        <span><i class="legend-box charger"></i>Charge</span>
-        <span><i class="legend-box trash-can"></i>Trash can</span>
-      </div>
-
+    <aside class="insights-panel" aria-label="History and algorithm statistics">
       <section class="history-panel" aria-label="Robot position history">
         <h2>Position History</h2>
-        <div class="history-table-wrap">
+        <p id="positionHistorySummary" class="history-summary"></p>
+        <div id="positionHistoryWrap" class="history-table-wrap">
           <table class="history-table">
             <thead>
               <tr>
@@ -45,7 +20,7 @@
                 <th>Action</th>
                 <th>Position</th>
                 <th>Battery</th>
-                <th>Capacity</th>
+                <th>Cap.</th>
               </tr>
             </thead>
             <tbody id="positionHistoryBody">
@@ -78,48 +53,90 @@
           </div>
         </dl>
       </section>
+    </aside>
 
-      <section class="history-panel trace-panel" aria-label="Algorithm traversal log">
-        <h2>Algorithm Trace</h2>
-        <p id="heuristicDescription" class="trace-help">Heuristic: not available.</p>
-        <div id="algorithmTrace" class="trace-log">
-          <p class="trace-empty">No trace yet.</p>
+    <section class="map-section" aria-label="Simulation map">
+      <div class="section-header">
+        <div>
+          <h1>CleanerBot Simulator</h1>
+          <p id="moduleWarning" class="module-warning">
+            JavaScript module chua chay. Hay mo bang Live Server thay vi mo truc tiep file HTML.
+          </p>
         </div>
-      </section>
+      </div>
+
+      <div class="map-layout" aria-label="Grid map with coordinates">
+        <div class="map-corner-label" aria-hidden="true"></div>
+        <div id="gridColumnLabels" class="map-axis map-axis-columns" aria-hidden="true"></div>
+        <div id="gridRowLabels" class="map-axis map-axis-rows" aria-hidden="true"></div>
+        <div id="gridMap" class="grid-map" aria-label="Grid map"></div>
+      </div>
+
+      <div class="legend" aria-label="Map legend">
+        <span><i class="legend-box robot"></i>Robot</span>
+        <span><i class="legend-box trash"></i>Trash</span>
+        <span><i class="legend-box obstacle"></i>Obstacle</span>
+        <span><i class="legend-box charger"></i>Charge</span>
+        <span><i class="legend-box trash-can"></i>Trash can</span>
+      </div>
     </section>
 
     <aside class="control-panel" aria-label="Controls">
-      <section class="panel-block">
-        <h2>Controls</h2>
+      <section class="panel-block controls-block">
+        <div class="controls-config-region">
+          <h2>Controls</h2>
+          <button
+            id="traceToggleButton"
+            class="secondary-button trace-toggle-button"
+            type="button"
+            aria-expanded="false"
+            aria-controls="tracePopup"
+          >
+            Expand
+          </button>
 
-        <label for="algorithmSelect">Algorithm</label>
-        <select id="algorithmSelect"></select>
+          <label for="algorithmSelect">Algorithm</label>
+          <select id="algorithmSelect"></select>
 
-        <div class="settings-grid">
-          <label>
-            Map width
-            <input id="mapWidthInput" type="number" min="4" max="20" value="8">
-          </label>
-          <label>
-            Map height
-            <input id="mapHeightInput" type="number" min="4" max="20" value="8">
-          </label>
-          <label>
-            Trash
-            <input id="trashCountInput" type="number" min="0" max="57" value="4">
-          </label>
-          <label>
-            Obstacles
-            <input id="obstacleCountInput" type="number" min="0" max="62" value="5">
-          </label>
-          <label>
-            Max capacity
-            <input id="maxCapacityInput" type="number" min="1" max="20" value="5">
-          </label>
-          <label>
-            Battery loss
-            <input id="batteryLossInput" type="number" min="0" max="100" step="0.5" value="1">
-          </label>
+          <div class="settings-grid">
+            <label>
+              Map width
+              <input id="mapWidthInput" type="number" min="4" max="20" value="8">
+            </label>
+            <label>
+              Map height
+              <input id="mapHeightInput" type="number" min="4" max="20" value="8">
+            </label>
+            <label>
+              Trash
+              <input id="trashCountInput" type="number" min="0" max="57" value="4">
+            </label>
+            <label>
+              Obstacles
+              <input id="obstacleCountInput" type="number" min="0" max="62" value="5">
+            </label>
+            <label>
+              Max capacity
+              <input id="maxCapacityInput" type="number" min="1" max="20" value="5">
+            </label>
+            <label>
+              Battery loss
+              <input id="batteryLossInput" type="number" min="0" max="100" step="0.5" value="1">
+            </label>
+          </div>
+
+          <section
+            id="tracePopup"
+            class="history-panel trace-panel trace-popup"
+            aria-label="Algorithm traversal log"
+            hidden
+          >
+            <h2>Algorithm Trace</h2>
+            <p id="heuristicDescription" class="trace-help">Heuristic: not available.</p>
+            <div id="algorithmTrace" class="trace-log">
+              <p class="trace-empty">No trace yet.</p>
+            </div>
+          </section>
         </div>
 
         <div class="button-grid">

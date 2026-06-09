@@ -13,6 +13,7 @@ export class Simulator {
     this.previousStates = [];
     this.previousMetricSnapshots = [];
     this.positionHistory = [];
+    this.positionHistoryTotal = 0;
     this.resetPositionHistory(this.environment.getState());
   }
 
@@ -68,6 +69,7 @@ export class Simulator {
       Math.max(0, previousState.robot.battery - nextState.robot.battery)
     );
     this.positionHistory.push(this.createPositionHistoryEntry(nextState));
+    this.positionHistoryTotal += 1;
     this.trimPositionHistory();
 
     if (nextState.map.done) {
@@ -92,6 +94,7 @@ export class Simulator {
     const restoredState = this.environment.restoreState(previousState);
     if (this.positionHistory.length > 1) {
       this.positionHistory.pop();
+      this.positionHistoryTotal = Math.max(1, this.positionHistoryTotal - 1);
     }
     this.onStateChange(restoredState);
   }
@@ -125,6 +128,7 @@ export class Simulator {
         latestAction: action,
       }),
     ];
+    this.positionHistoryTotal = this.positionHistory.length;
   }
 
   createPositionHistoryEntry(state) {
@@ -142,7 +146,20 @@ export class Simulator {
   }
 
   getPositionHistory() {
-    return this.positionHistory.map((entry) => ({ ...entry }));
+    return this.getPositionHistorySlice(MAX_POSITION_HISTORY_ENTRIES);
+  }
+
+  getPositionHistorySlice(limit = MAX_POSITION_HISTORY_ENTRIES) {
+    const safeLimit = clampHistoryLimit(limit, MAX_POSITION_HISTORY_ENTRIES);
+    const startIndex = Math.max(0, this.positionHistory.length - safeLimit);
+
+    return this.positionHistory
+      .slice(startIndex)
+      .map((entry) => ({ ...entry }));
+  }
+
+  getPositionHistoryCount() {
+    return this.positionHistoryTotal;
   }
 
   getAlgorithmMetricSummary() {
@@ -199,4 +216,14 @@ export class Simulator {
       this.positionHistory.length - MAX_POSITION_HISTORY_ENTRIES
     );
   }
+}
+
+function clampHistoryLimit(value, fallback) {
+  const numericValue = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(numericValue)) {
+    return fallback;
+  }
+
+  return Math.min(fallback, Math.max(0, numericValue));
 }
