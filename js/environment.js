@@ -116,6 +116,15 @@ export class Environment {
 
   saveCurrentAsInitialState() {
     const cleanInitialState = this.state.clone();
+    this.config = this.normalizeConfig({
+      gridSizeX: cleanInitialState.map.grid_size_x,
+      gridSizeY: cleanInitialState.map.grid_size_y,
+      trashCount: cleanInitialState.map.trashPositions.length,
+      obstacleCount: cleanInitialState.map.obstaclePositions.length,
+      maxCapacity: this.config.maxCapacity,
+      batteryLoss: this.config.batteryLoss,
+    });
+    cleanInitialState.config = this.createStateConfig(this.config);
     cleanInitialState.robot.battery = MAX_BATTERY;
     cleanInitialState.robot.capacity = 0;
     cleanInitialState.robot.maxCapacity = this.config.maxCapacity;

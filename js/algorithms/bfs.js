@@ -17,6 +17,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
     this.cachedRoute = null;
     this.cachedTargetKey = null;
     this.cachedMapKey = null;
+    this.pathCache = new Map();
     this.recentPositions = [];
     this.setHeuristicDescription("BFS does not use heuristic.");
   }
@@ -26,6 +27,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
     this.rememberPosition(state);
 
     if (map.done) {
+      this.clearCurrentTarget();
       this.clearRoute();
       return ACTIONS.STAY;
     }
@@ -35,23 +37,27 @@ export class BFSAlgorithm extends BaseAlgorithm {
       this.shouldEmptyTrash(state) &&
       this.hasEnoughBatteryForTarget(state, map.trashCan)
     ) {
+      this.setCurrentTarget(map.trashCan);
       this.clearRoute();
       return ACTIONS.LET_TRASH_OUT;
     }
 
     if (this.isAtChargingStation(state) && this.shouldCharge(state)) {
+      this.setCurrentTarget(map.chargingStation);
       this.clearRoute();
       return ACTIONS.CHARGE;
     }
 
     if (this.hasTrashAtRobot(state) && robot.capacity < robot.maxCapacity) {
       if (this.hasEnoughBatteryForTarget(state, robot)) {
+        this.setCurrentTarget(robot);
         this.clearRoute();
         return ACTIONS.SUCK_TRASH;
       }
     }
 
     let target = this.chooseWorkTarget(state);
+    this.setCurrentTarget(target);
 
     if (!target) {
       this.clearRoute();
@@ -62,6 +68,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
 
     if ((!route || route.length < 2) && !samePosition(target, map.chargingStation)) {
       target = map.chargingStation;
+      this.setCurrentTarget(target);
       route = this.getRouteToTarget(state, target);
     }
 
@@ -79,6 +86,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
 
       if ((!route || route.length < 2) && !samePosition(target, map.chargingStation)) {
         target = map.chargingStation;
+        this.setCurrentTarget(target);
         route = this.getRouteToTarget(state, target, {
           avoidFirstStepToPosition: previousPosition,
         });
@@ -163,13 +171,16 @@ export class BFSAlgorithm extends BaseAlgorithm {
       this.recordMemoryUsage(queue.length + visited.size);
 
       if (this.isTrashPosition(state, current)) {
+        const route = this.clonePath(node.path);
+        this.cachePath(state, start, current, route);
+
         if (
           robot.capacity < robot.maxCapacity &&
           this.hasEnoughBatteryForTarget(state, current)
         ) {
           return {
             target: current,
-            route: node.path,
+            route,
           };
         }
       }
@@ -205,6 +216,15 @@ export class BFSAlgorithm extends BaseAlgorithm {
     const avoidFirstStepKey = options.avoidFirstStepToPosition
       ? this.positionKey(options.avoidFirstStepToPosition)
       : null;
+
+    if (!avoidFirstStepKey) {
+      const cachedPath = this.getCachedPath(state, start, goal);
+
+      if (cachedPath !== undefined) {
+        return cachedPath;
+      }
+    }
+
     const normalizedStart = { x: start.x, y: start.y };
     const queue = [
       {
@@ -223,7 +243,13 @@ export class BFSAlgorithm extends BaseAlgorithm {
       this.recordMemoryUsage(queue.length + visited.size);
 
       if (samePosition(current, goal)) {
-        return node.path;
+        const resultPath = this.clonePath(node.path);
+
+        if (!avoidFirstStepKey) {
+          this.cachePath(state, start, goal, resultPath);
+        }
+
+        return resultPath;
       }
 
       for (const candidate of this.getMoveCandidates(current)) {
@@ -244,6 +270,10 @@ export class BFSAlgorithm extends BaseAlgorithm {
         });
         this.recordMemoryUsage(queue.length + visited.size);
       }
+    }
+
+    if (!avoidFirstStepKey) {
+      this.cachePath(state, start, goal, null);
     }
 
     return null;
@@ -514,6 +544,44 @@ export class BFSAlgorithm extends BaseAlgorithm {
       .join(",");
 
     return `${map.grid_size_x}x${map.grid_size_y}|${obstacleSignature}`;
+  }
+
+  getPathCacheKey(state, start, goal) {
+    return `${this.getStaticMapKey(state)}|${this.positionKey(start)}>${this.positionKey(goal)}`;
+  }
+
+  getCachedPath(state, start, goal) {
+    if (!this.pathCache) {
+      return undefined;
+    }
+
+    const cacheKey = this.getPathCacheKey(state, start, goal);
+
+    if (!this.pathCache.has(cacheKey)) {
+      return undefined;
+    }
+
+    return this.clonePath(this.pathCache.get(cacheKey));
+  }
+
+  cachePath(state, start, goal, path) {
+    if (!this.pathCache) {
+      this.pathCache = new Map();
+    }
+
+    const cacheKey = this.getPathCacheKey(state, start, goal);
+    const reverseCacheKey = this.getPathCacheKey(state, goal, start);
+    const cachedPath = this.clonePath(path);
+
+    this.pathCache.set(cacheKey, cachedPath);
+    this.pathCache.set(
+      reverseCacheKey,
+      cachedPath ? [...cachedPath].reverse() : null
+    );
+  }
+
+  clonePath(path) {
+    return path ? path.map((position) => ({ ...position })) : null;
   }
 
   isTrashPosition(state, position) {

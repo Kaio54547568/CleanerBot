@@ -7,7 +7,7 @@ import { createAlgorithm } from "./algorithms/registry.js";
 const COMPARE_STATE_STORAGE_KEY = "cleanerbot.compare.initialState";
 const COMPARE_ALGORITHMS = [
   { id: "bfs", label: "BFS" },
-  { id: "dfs", label: "DFS" },
+  { id: "ids", label: "IDS" },
   { id: "astar", label: "A*" },
   { id: "idastar", label: "IDA*" },
 ];
@@ -105,7 +105,7 @@ function createCompareCard({ id, label }) {
 }
 
 function renderCompareMetrics(slot) {
-  const metrics = slot.simulator.getAlgorithmMetrics();
+  const metrics = slot.simulator.getAlgorithmMetricSummary();
 
   slot.elements.runtimeValue.textContent = `${formatNumber(metrics.runtimeMs)} ms`;
   slot.elements.visitedNodesValue.textContent = `${metrics.visitedNodes}`;
@@ -143,14 +143,18 @@ function createCompareSlot(sharedInitialState, definition, cardElements) {
       algorithm,
       onStateChange: (state) => {
         const nextAction = !state.map.done ? slot.simulator.peekNextAction() : null;
-        slot.renderer.render(state, nextAction);
+        slot.renderer.render(state, nextAction, slot.simulator.getCurrentTarget());
         renderCompareMetrics(slot);
       },
       tickMs: 300,
     });
 
     const initialState = environment.getState();
-    slot.renderer.render(initialState, slot.simulator.peekNextAction());
+    slot.renderer.render(
+      initialState,
+      slot.simulator.peekNextAction(),
+      slot.simulator.getCurrentTarget()
+    );
     renderCompareMetrics(slot);
     return slot;
   });

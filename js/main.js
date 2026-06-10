@@ -3,8 +3,11 @@ import { simulationStateToPlain } from "./models.js";
 import { Simulator } from "./simulator.js";
 import { Renderer, formatAction, formatGridCoordinate, formatNumber } from "./render.js";
 import { algorithmRegistry, createAlgorithm } from "./algorithms/registry.js";
+import { createAlgorithmComparisonMap10x10 } from "./sampleMaps.js";
 
 const COMPARE_STATE_STORAGE_KEY = "cleanerbot.compare.initialState";
+const HISTORY_RENDER_LIMIT = 20;
+const TRACE_RENDER_LIMIT = 20;
 
 document.body.classList.add("js-ready");
 
@@ -21,6 +24,7 @@ const elements = {
   maxCapacityInput: document.getElementById("maxCapacityInput"),
   batteryLossInput: document.getElementById("batteryLossInput"),
   generateButton: document.getElementById("generateButton"),
+  loadDemoMapButton: document.getElementById("loadDemoMapButton"),
   resetButton: document.getElementById("resetButton"),
   previousStepButton: document.getElementById("previousStepButton"),
   nextStepButton: document.getElementById("nextStepButton"),
@@ -36,6 +40,8 @@ const elements = {
   latestLog: document.getElementById("latestLog"),
   latestActionValue: document.getElementById("latestActionValue"),
   nextActionValue: document.getElementById("nextActionValue"),
+  positionHistoryWrap: document.getElementById("positionHistoryWrap"),
+  positionHistorySummary: document.getElementById("positionHistorySummary"),
   positionHistoryBody: document.getElementById("positionHistoryBody"),
   runtimeValue: document.getElementById("runtimeValue"),
   visitedNodesValue: document.getElementById("visitedNodesValue"),
@@ -43,6 +49,8 @@ const elements = {
   batteryConsumedValue: document.getElementById("batteryConsumedValue"),
   heuristicDescription: document.getElementById("heuristicDescription"),
   algorithmTrace: document.getElementById("algorithmTrace"),
+  tracePopup: document.getElementById("tracePopup"),
+  traceToggleButton: document.getElementById("traceToggleButton"),
   statusBadge: document.getElementById("statusBadge"),
 };
 
@@ -63,8 +71,6 @@ const renderer = new Renderer({
 });
 
 let simulator = null;
-let renderedTraceCount = 0;
-let renderedHeuristicDescription = "";
 let renderedTraceSignature = "";
 
 function getMapConfigFromInputs() {
@@ -103,6 +109,7 @@ function updateButtonState() {
   elements.previousStepButton.disabled = !isReady || isRunning || !simulator.canStepBack();
   elements.nextStepButton.disabled = !isReady || isRunning;
   elements.generateButton.disabled = !isReady || isRunning;
+  elements.loadDemoMapButton.disabled = !isReady || isRunning;
   elements.resetButton.disabled = !isReady;
   elements.compareButton.disabled = !isReady || isRunning;
   elements.algorithmSelect.disabled = !isReady || isRunning;
@@ -128,7 +135,7 @@ function syncConfigFromInputs() {
 
 function handleStateChange(state) {
   const nextAction = simulator && !state.map.done ? simulator.peekNextAction() : null;
-  renderer.render(state, nextAction);
+  renderer.render(state, nextAction, simulator?.getCurrentTarget());
   renderPositionHistory();
   renderAlgorithmMetrics();
   renderAlgorithmTrace();
@@ -136,6 +143,19 @@ function handleStateChange(state) {
 }
 
 async function bindEvents() {
+  elements.traceToggleButton.addEventListener("click", () => {
+    setTracePopupOpen(elements.tracePopup.hidden);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || elements.tracePopup.hidden) {
+      return;
+    }
+
+    setTracePopupOpen(false);
+    elements.traceToggleButton.focus();
+  });
+
   elements.algorithmSelect.addEventListener("change", async () => {
     simulator.setAlgorithm(await createSelectedAlgorithm());
     handleStateChange(environment.getState());
@@ -144,6 +164,12 @@ async function bindEvents() {
 
   elements.generateButton.addEventListener("click", () => {
     simulator.generate(getMapConfigFromInputs());
+    updateInputsFromState(environment.getInitialState());
+    updateButtonState();
+  });
+
+  elements.loadDemoMapButton.addEventListener("click", () => {
+    simulator.loadState(createAlgorithmComparisonMap10x10());
     updateInputsFromState(environment.getInitialState());
     updateButtonState();
   });
@@ -204,7 +230,7 @@ async function bindEvents() {
     simulator.clearNextActionCache();
     simulator.clearHistory();
     simulator.resetPositionHistory(nextState, null);
-    renderer.render(nextState, simulator.peekNextAction());
+    renderer.render(nextState, simulator.peekNextAction(), simulator.getCurrentTarget());
     renderPositionHistory();
     renderAlgorithmMetrics();
     renderAlgorithmTrace();
@@ -249,8 +275,12 @@ function renderCellInspection(cell) {
 }
 
 function renderPositionHistory() {
-  const history = simulator ? simulator.getPositionHistory() : [];
+  const history = simulator
+    ? simulator.getPositionHistorySlice(HISTORY_RENDER_LIMIT)
+    : [];
+  const totalHistoryEntries = simulator ? simulator.getPositionHistoryCount() : 0;
   elements.positionHistoryBody.innerHTML = "";
+  elements.positionHistorySummary.textContent = "";
 
   if (history.length === 0) {
     const row = document.createElement("tr");
@@ -260,6 +290,11 @@ function renderPositionHistory() {
     row.appendChild(cell);
     elements.positionHistoryBody.appendChild(row);
     return;
+  }
+
+  if (totalHistoryEntries > history.length) {
+    elements.positionHistorySummary.textContent =
+      `Showing latest ${history.length} of ${totalHistoryEntries} positions.`;
   }
 
   history.forEach((entry) => {
@@ -277,10 +312,12 @@ function renderPositionHistory() {
     });
     elements.positionHistoryBody.appendChild(row);
   });
+
+  scrollToBottom(elements.positionHistoryWrap);
 }
 
 function renderAlgorithmMetrics() {
-  const metrics = simulator?.getAlgorithmMetrics();
+  const metrics = simulator?.getAlgorithmMetricSummary();
 
   if (!metrics) {
     elements.runtimeValue.textContent = "0 ms";
@@ -297,44 +334,43 @@ function renderAlgorithmMetrics() {
 }
 
 function renderAlgorithmTrace() {
-  const metrics = simulator?.getAlgorithmMetrics();
-  const trace = metrics?.trace ?? [];
+  const metrics = simulator?.getAlgorithmMetricSummary();
+  const trace = simulator?.getAlgorithmTraceSlice(TRACE_RENDER_LIMIT) ?? [];
   const heuristicDescription = metrics?.heuristicDescription ?? "Heuristic: not available.";
-  const traceSignature = getTraceSignature(trace, heuristicDescription);
+  const traceSignature = getTraceSignature(trace, heuristicDescription, metrics);
 
-  if (
-    trace.length < renderedTraceCount ||
-    heuristicDescription !== renderedHeuristicDescription ||
-    (trace.length === renderedTraceCount && traceSignature !== renderedTraceSignature)
-  ) {
-    elements.algorithmTrace.innerHTML = "";
-    renderedTraceCount = 0;
+  if (traceSignature === renderedTraceSignature) {
+    return;
   }
 
   elements.heuristicDescription.textContent = heuristicDescription;
-  renderedHeuristicDescription = heuristicDescription;
+  elements.algorithmTrace.innerHTML = "";
 
   if (trace.length === 0) {
-    elements.algorithmTrace.innerHTML = "";
     const empty = document.createElement("p");
     empty.className = "trace-empty";
     empty.textContent = "No trace yet.";
     elements.algorithmTrace.appendChild(empty);
-    renderedTraceCount = 0;
-    renderedTraceSignature = "";
+    renderedTraceSignature = traceSignature;
     return;
   }
 
-  if (renderedTraceCount === 0) {
-    elements.algorithmTrace.innerHTML = "";
+  const fragment = document.createDocumentFragment();
+
+  if (metrics && metrics.visitedNodes > trace.length) {
+    const summary = document.createElement("p");
+    summary.className = "trace-empty";
+    summary.textContent = `Showing latest ${trace.length} of ${metrics.visitedNodes} visits.`;
+    fragment.appendChild(summary);
   }
 
-  trace.slice(renderedTraceCount).forEach((entry) => {
-    elements.algorithmTrace.appendChild(createTraceEntry(entry));
+  trace.forEach((entry) => {
+    fragment.appendChild(createTraceEntry(entry));
   });
 
-  renderedTraceCount = trace.length;
+  elements.algorithmTrace.appendChild(fragment);
   renderedTraceSignature = traceSignature;
+  scrollToBottom(elements.algorithmTrace);
 }
 
 function createTraceEntry(entry) {
@@ -368,6 +404,20 @@ function createTraceLine(text) {
   line.className = "trace-line";
   line.textContent = text;
   return line;
+}
+
+function scrollToBottom(element) {
+  if (!element) {
+    return;
+  }
+
+  element.scrollTop = element.scrollHeight;
+}
+
+function setTracePopupOpen(isOpen) {
+  elements.tracePopup.hidden = !isOpen;
+  elements.traceToggleButton.textContent = isOpen ? "Close" : "Expand";
+  elements.traceToggleButton.setAttribute("aria-expanded", `${isOpen}`);
 }
 
 function saveCompareState() {
@@ -441,15 +491,16 @@ function clampInteger(value, min, max) {
   return Math.min(max, Math.max(min, numberValue));
 }
 
-function getTraceSignature(trace, heuristicDescription) {
+function getTraceSignature(trace, heuristicDescription, metrics = null) {
   const firstEntry = trace[0];
   const lastEntry = trace[trace.length - 1];
 
   return [
     heuristicDescription,
+    metrics?.visitedNodes ?? 0,
     trace.length,
-    firstEntry?.label ?? "",
-    lastEntry?.label ?? "",
+    firstEntry?.order ?? "",
+    lastEntry?.order ?? "",
     lastEntry?.g ?? "",
     lastEntry?.h ?? "",
     lastEntry?.f ?? "",

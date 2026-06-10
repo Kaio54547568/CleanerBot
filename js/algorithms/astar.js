@@ -61,17 +61,14 @@ export class AStarAlgorithm extends BFSAlgorithm {
       return this.runAStar(state, start, goal, avoidFirstStepKey);
     }
 
-    const cacheKey = this.getPathCacheKey(state, start, goal);
+    const cachedPath = this.getCachedPath(state, start, goal);
 
-    if (this.pathCache.has(cacheKey)) {
-      return this.pathCache.get(cacheKey);
+    if (cachedPath !== undefined) {
+      return cachedPath;
     }
 
     const path = this.runAStar(state, start, goal, null);
-    const reverseCacheKey = this.getPathCacheKey(state, goal, start);
-
-    this.pathCache.set(cacheKey, path);
-    this.pathCache.set(reverseCacheKey, path ? [...path].reverse() : null);
+    this.cachePath(state, start, goal, path);
     return path;
   }
 
@@ -234,9 +231,5 @@ export class AStarAlgorithm extends BFSAlgorithm {
       default:
         return 4;
     }
-  }
-
-  getPathCacheKey(state, start, goal) {
-    return `${this.getStaticMapKey(state)}|${this.positionKey(start)}>${this.positionKey(goal)}`;
   }
 }
