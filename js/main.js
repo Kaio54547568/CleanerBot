@@ -3,7 +3,7 @@ import { simulationStateToPlain } from "./models.js";
 import { Simulator } from "./simulator.js";
 import { Renderer, formatAction, formatGridCoordinate, formatNumber } from "./render.js";
 import { algorithmRegistry, createAlgorithm } from "./algorithms/registry.js";
-import { createAlgorithmComparisonMap10x10 } from "./sampleMaps.js";
+import { createSampleMap, sampleMapRegistry } from "./sampleMaps.js";
 
 const COMPARE_STATE_STORAGE_KEY = "cleanerbot.compare.initialState";
 const HISTORY_RENDER_LIMIT = 20;
@@ -24,7 +24,7 @@ const elements = {
   maxCapacityInput: document.getElementById("maxCapacityInput"),
   batteryLossInput: document.getElementById("batteryLossInput"),
   generateButton: document.getElementById("generateButton"),
-  loadDemoMapButton: document.getElementById("loadDemoMapButton"),
+  demoMapSelect: document.getElementById("demoMapSelect"),
   resetButton: document.getElementById("resetButton"),
   previousStepButton: document.getElementById("previousStepButton"),
   nextStepButton: document.getElementById("nextStepButton"),
@@ -97,6 +97,16 @@ function renderAlgorithmOptions() {
   });
 }
 
+function renderDemoMapOptions() {
+  sampleMapRegistry.forEach((preset) => {
+    const option = document.createElement("option");
+    option.value = preset.id;
+    option.textContent = preset.label;
+    option.title = preset.purpose;
+    elements.demoMapSelect.appendChild(option);
+  });
+}
+
 async function createSelectedAlgorithm() {
   return createAlgorithm(elements.algorithmSelect.value);
 }
@@ -109,7 +119,7 @@ function updateButtonState() {
   elements.previousStepButton.disabled = !isReady || isRunning || !simulator.canStepBack();
   elements.nextStepButton.disabled = !isReady || isRunning;
   elements.generateButton.disabled = !isReady || isRunning;
-  elements.loadDemoMapButton.disabled = !isReady || isRunning;
+  elements.demoMapSelect.disabled = !isReady || isRunning;
   elements.resetButton.disabled = !isReady;
   elements.compareButton.disabled = !isReady || isRunning;
   elements.algorithmSelect.disabled = !isReady || isRunning;
@@ -168,9 +178,16 @@ async function bindEvents() {
     updateButtonState();
   });
 
-  elements.loadDemoMapButton.addEventListener("click", () => {
-    simulator.loadState(createAlgorithmComparisonMap10x10());
+  elements.demoMapSelect.addEventListener("change", () => {
+    const state = createSampleMap(elements.demoMapSelect.value);
+
+    if (!state) {
+      return;
+    }
+
+    simulator.loadState(state);
     updateInputsFromState(environment.getInitialState());
+    elements.demoMapSelect.value = "";
     updateButtonState();
   });
 
@@ -509,6 +526,7 @@ function getTraceSignature(trace, heuristicDescription, metrics = null) {
 
 async function init() {
   renderAlgorithmOptions();
+  renderDemoMapOptions();
   updateButtonState();
 
   simulator = new Simulator({
