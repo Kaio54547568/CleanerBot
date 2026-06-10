@@ -25,6 +25,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
   computeNextAction(state) {
     const { robot, map } = state;
     this.rememberPosition(state);
+    this.setCurrentTarget(null);
 
     if (map.done) {
       this.clearRoute();
@@ -36,17 +37,20 @@ export class BFSAlgorithm extends BaseAlgorithm {
       this.shouldEmptyTrash(state) &&
       this.hasEnoughBatteryForTarget(state, map.trashCan)
     ) {
+      this.setCurrentTarget(map.trashCan);
       this.clearRoute();
       return ACTIONS.LET_TRASH_OUT;
     }
 
     if (this.isAtChargingStation(state) && this.shouldCharge(state)) {
+      this.setCurrentTarget(map.chargingStation);
       this.clearRoute();
       return ACTIONS.CHARGE;
     }
 
     if (this.hasTrashAtRobot(state) && robot.capacity < robot.maxCapacity) {
       if (this.hasEnoughBatteryForTarget(state, robot)) {
+        this.setCurrentTarget(robot);
         this.clearRoute();
         return ACTIONS.SUCK_TRASH;
       }
@@ -59,10 +63,12 @@ export class BFSAlgorithm extends BaseAlgorithm {
       return ACTIONS.STAY;
     }
 
+    this.setCurrentTarget(target);
     let route = this.getRouteToTarget(state, target);
 
     if ((!route || route.length < 2) && !samePosition(target, map.chargingStation)) {
       target = map.chargingStation;
+      this.setCurrentTarget(target);
       route = this.getRouteToTarget(state, target);
     }
 
@@ -80,6 +86,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
 
       if ((!route || route.length < 2) && !samePosition(target, map.chargingStation)) {
         target = map.chargingStation;
+        this.setCurrentTarget(target);
         route = this.getRouteToTarget(state, target, {
           avoidFirstStepToPosition: previousPosition,
         });

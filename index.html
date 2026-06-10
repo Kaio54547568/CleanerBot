@@ -75,6 +75,7 @@
       <div class="legend" aria-label="Map legend">
         <span><i class="legend-box robot"></i>Robot</span>
         <span><i class="legend-box trash"></i>Trash</span>
+        <span><i class="legend-box target-trash"></i>Target trash</span>
         <span><i class="legend-box obstacle"></i>Obstacle</span>
         <span><i class="legend-box charger"></i>Charge</span>
         <span><i class="legend-box trash-can"></i>Trash can</span>
@@ -142,11 +143,15 @@
         <div class="button-grid">
           <button id="generateButton" type="button">Generate map</button>
           <button id="resetButton" type="button">Reset map</button>
+          <button id="saveMapButton" class="secondary-button" type="button">Save map</button>
+          <button id="loadMapButton" class="secondary-button" type="button">Load map</button>
           <button id="previousStepButton" type="button">Previous Step</button>
           <button id="nextStepButton" type="button">Next Step</button>
           <button id="runButton" type="button">Run Algorithm</button>
           <button id="stopButton" type="button">Stop</button>
         </div>
+        <input id="loadMapInput" type="file" accept=".json,application/json" hidden>
+        <p id="mapStorageStatus" class="map-storage-status" role="status" aria-live="polite"></p>
 
         <div class="speed-controls" aria-label="Run speed">
           <span>Speed</span>
@@ -156,7 +161,17 @@
           <button class="speed-button" type="button" data-speed="5">5x</button>
         </div>
 
-        <button id="compareButton" class="secondary-button compare-button" type="button">Compare</button>
+        <form
+          id="compareForm"
+          class="compare-form"
+          action="compare.html"
+          method="get"
+          target="_blank"
+          rel="noopener"
+        >
+          <input id="compareStateKeyInput" type="hidden" name="stateKey">
+          <button id="compareButton" class="secondary-button compare-button" type="submit">Compare</button>
+        </form>
       </section>
 
       <section class="panel-block">
@@ -216,6 +231,24 @@
       </section>
     </aside>
   </main>
+
+  <dialog id="saveMapDialog" class="map-dialog" aria-labelledby="saveMapDialogTitle">
+    <form id="saveMapForm">
+      <h2 id="saveMapDialogTitle">Save current map</h2>
+      <label for="saveMapNameInput">Map name</label>
+      <input
+        id="saveMapNameInput"
+        type="text"
+        maxlength="80"
+        autocomplete="off"
+        required
+      >
+      <div class="dialog-actions">
+        <button id="cancelSaveMapButton" class="secondary-button" type="button">Cancel</button>
+        <button type="submit">Download JSON</button>
+      </div>
+    </form>
+  </dialog>
 
   <script type="module" src="js/main.js"></script>
 </body>
