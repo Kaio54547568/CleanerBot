@@ -144,6 +144,7 @@
           <button id="generateButton" type="button">Generate map</button>
           <button id="resetButton" type="button">Reset map</button>
           <button id="loadDemoMapButton" class="secondary-button" type="button">Load demo map</button>
+          <button id="templatesButton" class="secondary-button" type="button">Templates</button>
           <button id="previousStepButton" type="button">Previous Step</button>
           <button id="nextStepButton" type="button">Next Step</button>
           <button id="runButton" type="button">Run Algorithm</button>
@@ -218,6 +219,54 @@
       </section>
     </aside>
   </main>
+
+  <dialog id="templatesDialog" class="modal-dialog templates-dialog" aria-labelledby="templatesDialogTitle">
+    <div class="modal-header">
+      <h2 id="templatesDialogTitle">Templates</h2>
+      <button id="closeTemplatesButton" class="icon-button" type="button" aria-label="Close templates">X</button>
+    </div>
+    <div id="templatesList" class="templates-list" aria-live="polite"></div>
+    <div class="modal-actions">
+      <button id="addTemplateButton" type="button">Add</button>
+    </div>
+  </dialog>
+
+  <dialog id="saveTemplateDialog" class="modal-dialog save-template-dialog" aria-labelledby="saveTemplateDialogTitle">
+    <div class="modal-header">
+      <h2 id="saveTemplateDialogTitle">Save current map as template?</h2>
+      <button id="closeSaveTemplateButton" class="icon-button" type="button" aria-label="Close save template">X</button>
+    </div>
+    <label>
+      Template name
+      <input id="templateNameInput" type="text" maxlength="60" placeholder="My map">
+    </label>
+    <div class="template-settings-grid">
+      <label>
+        Robot capacity
+        <input id="templateCapacityInput" type="number" min="1" max="20" value="5">
+      </label>
+      <label>
+        Current battery %
+        <input id="templateBatteryInput" type="number" min="0" max="100" step="1" value="100">
+      </label>
+    </div>
+    <p id="saveTemplateMessage" class="dialog-message"></p>
+    <div class="modal-actions">
+      <button id="confirmSaveTemplateButton" type="button">Confirm</button>
+    </div>
+  </dialog>
+
+  <dialog id="deleteTemplateDialog" class="modal-dialog confirm-dialog" aria-labelledby="deleteTemplateDialogTitle">
+    <div class="modal-header">
+      <h2 id="deleteTemplateDialogTitle">Delete template?</h2>
+      <button id="closeDeleteTemplateButton" class="icon-button" type="button" aria-label="Close delete template">X</button>
+    </div>
+    <p id="deleteTemplateMessage" class="dialog-message">Are you sure you want to delete this map?</p>
+    <div class="modal-actions">
+      <button id="cancelDeleteTemplateButton" class="secondary-button" type="button">Cancel</button>
+      <button id="confirmDeleteTemplateButton" class="danger-button" type="button">Delete</button>
+    </div>
+  </dialog>
 
   <script type="module" src="js/main.js"></script>
 </body>

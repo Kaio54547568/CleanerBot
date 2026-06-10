@@ -1,0 +1,9 @@
+{
+  "templates": [
+    {
+      "id": "algorithm-comparison-10x10",
+      "name": "Algorithm comparison 10x10",
+      "file": "templates/algorithm-comparison-10x10.json"
+    }
+  ]
+}

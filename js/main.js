@@ -4,8 +4,17 @@ import { Simulator } from "./simulator.js";
 import { Renderer, formatAction, formatGridCoordinate, formatNumber } from "./render.js";
 import { algorithmRegistry, createAlgorithm } from "./algorithms/registry.js";
 import { createAlgorithmComparisonMap10x10 } from "./sampleMaps.js";
+import {
+  createTemplateRecord,
+  loadBuiltinTemplates,
+  readUserTemplates,
+  sanitizeTemplateName,
+  writeUserTemplates,
+} from "./templates.js";
 
 const COMPARE_STATE_STORAGE_KEY = "cleanerbot.compare.initialState";
+const EDITOR_STATE_STORAGE_KEY = "cleanerbot.editor.state";
+const HIDDEN_BUILTIN_TEMPLATES_STORAGE_KEY = "cleanerbot.templates.hiddenBuiltins.v1";
 const HISTORY_RENDER_LIMIT = 20;
 const TRACE_RENDER_LIMIT = 20;
 
@@ -24,6 +33,7 @@ const elements = {
   maxCapacityInput: document.getElementById("maxCapacityInput"),
   batteryLossInput: document.getElementById("batteryLossInput"),
   generateButton: document.getElementById("generateButton"),
+  templatesButton: document.getElementById("templatesButton"),
   loadDemoMapButton: document.getElementById("loadDemoMapButton"),
   resetButton: document.getElementById("resetButton"),
   previousStepButton: document.getElementById("previousStepButton"),
@@ -52,6 +62,22 @@ const elements = {
   tracePopup: document.getElementById("tracePopup"),
   traceToggleButton: document.getElementById("traceToggleButton"),
   statusBadge: document.getElementById("statusBadge"),
+  templatesDialog: document.getElementById("templatesDialog"),
+  templatesList: document.getElementById("templatesList"),
+  closeTemplatesButton: document.getElementById("closeTemplatesButton"),
+  addTemplateButton: document.getElementById("addTemplateButton"),
+  saveTemplateDialog: document.getElementById("saveTemplateDialog"),
+  closeSaveTemplateButton: document.getElementById("closeSaveTemplateButton"),
+  templateNameInput: document.getElementById("templateNameInput"),
+  templateCapacityInput: document.getElementById("templateCapacityInput"),
+  templateBatteryInput: document.getElementById("templateBatteryInput"),
+  saveTemplateMessage: document.getElementById("saveTemplateMessage"),
+  confirmSaveTemplateButton: document.getElementById("confirmSaveTemplateButton"),
+  deleteTemplateDialog: document.getElementById("deleteTemplateDialog"),
+  closeDeleteTemplateButton: document.getElementById("closeDeleteTemplateButton"),
+  cancelDeleteTemplateButton: document.getElementById("cancelDeleteTemplateButton"),
+  confirmDeleteTemplateButton: document.getElementById("confirmDeleteTemplateButton"),
+  deleteTemplateMessage: document.getElementById("deleteTemplateMessage"),
 };
 
 const environment = new Environment();
@@ -72,6 +98,8 @@ const renderer = new Renderer({
 
 let simulator = null;
 let renderedTraceSignature = "";
+let builtinTemplates = [];
+let pendingDeleteTemplate = null;
 
 function getMapConfigFromInputs() {
   updateCountLimitsFromInputs();
@@ -110,6 +138,7 @@ function updateButtonState() {
   elements.nextStepButton.disabled = !isReady || isRunning;
   elements.generateButton.disabled = !isReady || isRunning;
   elements.loadDemoMapButton.disabled = !isReady || isRunning;
+  elements.templatesButton.disabled = !isReady || isRunning;
   elements.resetButton.disabled = !isReady;
   elements.compareButton.disabled = !isReady || isRunning;
   elements.algorithmSelect.disabled = !isReady || isRunning;
@@ -140,6 +169,7 @@ function handleStateChange(state) {
   renderAlgorithmMetrics();
   renderAlgorithmTrace();
   updateButtonState();
+  saveEditorState();
 }
 
 async function bindEvents() {
@@ -172,6 +202,39 @@ async function bindEvents() {
     simulator.loadState(createAlgorithmComparisonMap10x10());
     updateInputsFromState(environment.getInitialState());
     updateButtonState();
+  });
+
+  elements.templatesButton.addEventListener("click", () => {
+    renderTemplatesList();
+    openDialog(elements.templatesDialog);
+  });
+
+  elements.closeTemplatesButton.addEventListener("click", () => {
+    elements.templatesDialog.close();
+  });
+
+  elements.addTemplateButton.addEventListener("click", () => {
+    openSaveTemplateDialog();
+  });
+
+  elements.closeSaveTemplateButton.addEventListener("click", () => {
+    elements.saveTemplateDialog.close();
+  });
+
+  elements.confirmSaveTemplateButton.addEventListener("click", () => {
+    saveCurrentMapAsTemplate();
+  });
+
+  elements.closeDeleteTemplateButton.addEventListener("click", () => {
+    closeDeleteTemplateDialog();
+  });
+
+  elements.cancelDeleteTemplateButton.addEventListener("click", () => {
+    closeDeleteTemplateDialog();
+  });
+
+  elements.confirmDeleteTemplateButton.addEventListener("click", () => {
+    deletePendingTemplate();
   });
 
   elements.resetButton.addEventListener("click", () => {
@@ -236,6 +299,7 @@ async function bindEvents() {
     renderAlgorithmTrace();
     updateCountInputs(nextState);
     updateButtonState();
+    saveEditorState();
   });
 
   elements.gridMap.addEventListener("mouseover", (event) => {
@@ -421,10 +485,33 @@ function setTracePopupOpen(isOpen) {
 }
 
 function saveCompareState() {
+  const state = environment.getInitialState();
+  const stateJson = JSON.stringify(simulationStateToPlain(state));
+  window.sessionStorage.setItem(COMPARE_STATE_STORAGE_KEY, stateJson);
+  window.sessionStorage.setItem(EDITOR_STATE_STORAGE_KEY, stateJson);
+}
+
+function saveEditorState(state = environment.getInitialState()) {
   window.sessionStorage.setItem(
-    COMPARE_STATE_STORAGE_KEY,
-    JSON.stringify(simulationStateToPlain(environment.getInitialState()))
+    EDITOR_STATE_STORAGE_KEY,
+    JSON.stringify(simulationStateToPlain(state))
   );
+}
+
+function loadSavedEditorState() {
+  const storedState = window.sessionStorage.getItem(EDITOR_STATE_STORAGE_KEY);
+
+  if (!storedState) {
+    return false;
+  }
+
+  try {
+    environment.loadState(JSON.parse(storedState));
+    return true;
+  } catch (error) {
+    console.warn("Cannot restore editor state.", error);
+    return false;
+  }
 }
 
 function setActiveSpeedButton(activeButton) {
@@ -507,9 +594,170 @@ function getTraceSignature(trace, heuristicDescription, metrics = null) {
   ].join("|");
 }
 
+async function refreshTemplates() {
+  const hiddenBuiltinIds = readHiddenBuiltinTemplateIds();
+  builtinTemplates = (await loadBuiltinTemplates()).filter((template) => {
+    return !hiddenBuiltinIds.includes(template.id);
+  });
+  renderTemplatesList();
+}
+
+function getAvailableTemplates() {
+  return [...builtinTemplates, ...readUserTemplates()];
+}
+
+function renderTemplatesList() {
+  const templates = getAvailableTemplates();
+  elements.templatesList.innerHTML = "";
+
+  if (templates.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "templates-empty";
+    empty.textContent = "No templates saved yet.";
+    elements.templatesList.appendChild(empty);
+    return;
+  }
+
+  templates.forEach((template) => {
+    const item = document.createElement("article");
+    item.className = "template-tab";
+
+    const title = document.createElement("p");
+    title.className = "template-tab-title";
+    title.textContent = template.name;
+    item.appendChild(title);
+
+    const actions = document.createElement("div");
+    actions.className = "template-tab-actions";
+
+    const playButton = document.createElement("button");
+    playButton.className = "icon-button play-template-button";
+    playButton.type = "button";
+    playButton.textContent = "Play";
+    playButton.setAttribute("aria-label", `Load ${template.name}`);
+    playButton.addEventListener("click", () => {
+      loadTemplate(template);
+    });
+    actions.appendChild(playButton);
+
+    const deleteButton = document.createElement("button");
+    deleteButton.className = "icon-button delete-template-button";
+    deleteButton.type = "button";
+    deleteButton.textContent = "X";
+    deleteButton.setAttribute("aria-label", `Delete ${template.name}`);
+    deleteButton.addEventListener("click", () => {
+      openDeleteTemplateDialog(template);
+    });
+    actions.appendChild(deleteButton);
+
+    item.appendChild(actions);
+    elements.templatesList.appendChild(item);
+  });
+}
+
+function loadTemplate(template) {
+  const state = simulationStateToPlain(template.state);
+  state.latestLog = `Loaded template "${template.name}".`;
+  simulator.loadState(state);
+  updateInputsFromState(environment.getInitialState());
+  saveEditorState(environment.getInitialState());
+  elements.templatesDialog.close();
+}
+
+function openSaveTemplateDialog() {
+  const state = environment.getState();
+  elements.templateNameInput.value = "";
+  elements.templateCapacityInput.value = `${state.robot.maxCapacity}`;
+  elements.templateBatteryInput.value = `${Math.round(state.robot.battery)}`;
+  elements.saveTemplateMessage.textContent = "";
+  openDialog(elements.saveTemplateDialog);
+  elements.templateNameInput.focus();
+}
+
+function saveCurrentMapAsTemplate() {
+  const name = sanitizeTemplateName(elements.templateNameInput.value);
+
+  if (!name) {
+    elements.saveTemplateMessage.textContent = "Please enter a template name.";
+    elements.templateNameInput.focus();
+    return;
+  }
+
+  const templates = readUserTemplates();
+  templates.push(createTemplateRecord({
+    name,
+    state: environment.getState(),
+    maxCapacity: elements.templateCapacityInput.value,
+    battery: elements.templateBatteryInput.value,
+  }));
+  writeUserTemplates(templates);
+  elements.saveTemplateDialog.close();
+  renderTemplatesList();
+}
+
+function openDeleteTemplateDialog(template) {
+  pendingDeleteTemplate = template;
+  elements.deleteTemplateMessage.textContent =
+    `Are you sure you want to delete "${template.name}"?`;
+  openDialog(elements.deleteTemplateDialog);
+}
+
+function closeDeleteTemplateDialog() {
+  pendingDeleteTemplate = null;
+  elements.deleteTemplateDialog.close();
+}
+
+function deletePendingTemplate() {
+  if (!pendingDeleteTemplate) {
+    return;
+  }
+
+  if (pendingDeleteTemplate.readonly) {
+    const hiddenIds = readHiddenBuiltinTemplateIds();
+    writeHiddenBuiltinTemplateIds([...new Set([...hiddenIds, pendingDeleteTemplate.id])]);
+    builtinTemplates = builtinTemplates.filter((template) => template.id !== pendingDeleteTemplate.id);
+  } else {
+    writeUserTemplates(
+      readUserTemplates().filter((template) => template.id !== pendingDeleteTemplate.id)
+    );
+  }
+
+  closeDeleteTemplateDialog();
+  renderTemplatesList();
+}
+
+function readHiddenBuiltinTemplateIds() {
+  try {
+    const parsedValue = JSON.parse(
+      window.localStorage.getItem(HIDDEN_BUILTIN_TEMPLATES_STORAGE_KEY) ?? "[]"
+    );
+
+    return Array.isArray(parsedValue) ? parsedValue.map(String) : [];
+  } catch (error) {
+    console.warn("Cannot read hidden built-in template ids.", error);
+    return [];
+  }
+}
+
+function writeHiddenBuiltinTemplateIds(ids) {
+  window.localStorage.setItem(
+    HIDDEN_BUILTIN_TEMPLATES_STORAGE_KEY,
+    JSON.stringify(ids)
+  );
+}
+
+function openDialog(dialog) {
+  if (dialog.open) {
+    return;
+  }
+
+  dialog.showModal();
+}
+
 async function init() {
   renderAlgorithmOptions();
   updateButtonState();
+  loadSavedEditorState();
 
   simulator = new Simulator({
     environment,
@@ -517,6 +765,7 @@ async function init() {
     onStateChange: handleStateChange,
   });
 
+  await refreshTemplates();
   bindEvents();
   handleStateChange(environment.getState());
   updateInputsFromState(environment.getInitialState());
