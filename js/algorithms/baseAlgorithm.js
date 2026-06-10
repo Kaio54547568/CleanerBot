@@ -15,7 +15,7 @@ export class BaseAlgorithm {
 
   reset() {
     this.resetMetrics();
-    this.clearCurrentTarget();
+    this.setCurrentTarget(null);
   }
 
   nextAction(state) {
@@ -55,6 +55,33 @@ export class BaseAlgorithm {
 
   getMetricsSnapshot() {
     return cloneMetrics(this.metrics);
+  }
+
+  getStateSnapshot() {
+    const snapshot = {};
+
+    Object.keys(this).forEach((key) => {
+      snapshot[key] = cloneRuntimeValue(this[key]);
+    });
+
+    return snapshot;
+  }
+
+  restoreStateSnapshot(snapshot) {
+    if (!snapshot) {
+      this.reset();
+      return;
+    }
+
+    Object.keys(this).forEach((key) => {
+      if (!(key in snapshot)) {
+        delete this[key];
+      }
+    });
+
+    Object.entries(snapshot).forEach(([key, value]) => {
+      this[key] = cloneRuntimeValue(value);
+    });
   }
 
   restoreMetrics(snapshot) {
@@ -272,7 +299,7 @@ function getNow() {
 }
 
 function cloneMetrics(metrics) {
-  return JSON.parse(JSON.stringify(metrics));
+  return cloneRuntimeValue(metrics);
 }
 
 function createEmptyMetrics(name) {
@@ -337,4 +364,41 @@ function cloneTraceEntries(entries) {
     position: entry.position ? { ...entry.position } : null,
     goal: entry.goal ? { ...entry.goal } : null,
   }));
+}
+
+function cloneRuntimeValue(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(cloneRuntimeValue);
+  }
+
+  if (value instanceof Map) {
+    return new Map(
+      [...value.entries()].map(([key, entryValue]) => [
+        cloneRuntimeValue(key),
+        cloneRuntimeValue(entryValue),
+      ])
+    );
+  }
+
+  if (value instanceof Set) {
+    return new Set([...value].map(cloneRuntimeValue));
+  }
+
+  const clone = {};
+
+  Object.entries(value).forEach(([key, entryValue]) => {
+    clone[key] = cloneRuntimeValue(entryValue);
+  });
+
+  return clone;
 }

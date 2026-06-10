@@ -3,8 +3,8 @@ import { simulationStateFromPlain } from "./models.js";
 import { Simulator } from "./simulator.js";
 import { Renderer, formatNumber } from "./render.js";
 import { createAlgorithm } from "./algorithms/registry.js";
+import { consumeCompareState } from "./compareTransfer.js";
 
-const COMPARE_STATE_STORAGE_KEY = "cleanerbot.compare.initialState";
 const COMPARE_ALGORITHMS = [
   { id: "bfs", label: "BFS" },
   { id: "ids", label: "IDS" },
@@ -24,13 +24,14 @@ const elements = {
 const compareSlots = [];
 
 function loadSharedInitialState() {
-  const storedState = window.sessionStorage.getItem(COMPARE_STATE_STORAGE_KEY);
+  const storageKey = new URLSearchParams(window.location.search).get("stateKey");
+  const storedState = consumeCompareState(window.localStorage, storageKey);
 
   if (storedState) {
     try {
-      return simulationStateFromPlain(JSON.parse(storedState));
+      return simulationStateFromPlain(storedState);
     } catch (error) {
-      console.warn("Cannot parse compare state from sessionStorage.", error);
+      console.warn("Cannot parse compare state from localStorage.", error);
     }
   }
 
@@ -150,11 +151,8 @@ function createCompareSlot(sharedInitialState, definition, cardElements) {
     });
 
     const initialState = environment.getState();
-    slot.renderer.render(
-      initialState,
-      slot.simulator.peekNextAction(),
-      slot.simulator.getCurrentTarget()
-    );
+    const nextAction = slot.simulator.peekNextAction();
+    slot.renderer.render(initialState, nextAction, slot.simulator.getCurrentTarget());
     renderCompareMetrics(slot);
     return slot;
   });

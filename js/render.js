@@ -105,6 +105,7 @@ export class Renderer {
 
         if (isCurrentTrashTarget) {
           cell.classList.add("current-target");
+          cell.classList.add("target-trash");
           cell.title += " - Current target";
         }
 

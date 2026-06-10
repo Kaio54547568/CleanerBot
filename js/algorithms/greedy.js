@@ -28,6 +28,7 @@ export class GreedyAlgorithm extends BaseAlgorithm {
     this.rememberPosition(robot);
     this.recordNodeVisit({ position: state.robot });
     this.recordMemoryUsage(1);
+    this.setCurrentTarget(null);
 
     if (this.isAtTrashCan(state) && robot.capacity > 0) {
       this.setCurrentTarget(map.trashCan);
@@ -58,6 +59,8 @@ export class GreedyAlgorithm extends BaseAlgorithm {
     ) {
       target = map.chargingStation;
     }
+
+    this.setCurrentTarget(target);
 
     if (
       target &&

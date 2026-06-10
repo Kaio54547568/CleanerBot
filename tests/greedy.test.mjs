@@ -166,6 +166,16 @@ test("Greedy does not empty trash when the action would break charging reserve",
   assert.equal(action, ACTIONS.LEFT);
 });
 
+test("Greedy exposes the trash position it is currently targeting", () => {
+  const algorithm = new GreedyAlgorithm();
+
+  algorithm.nextAction(createState({
+    trashPositions: [{ x: 3, y: 1 }],
+  }));
+
+  assert.deepEqual(algorithm.getCurrentTarget(), { x: 3, y: 1 });
+});
+
 function hasAlternatingTwoCellLoop(history) {
   for (let index = 0; index <= history.length - 4; index += 1) {
     const first = history[index];
