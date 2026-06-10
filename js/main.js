@@ -2,7 +2,6 @@ import { Environment } from "./environment.js";
 import { simulationStateToPlain } from "./models.js";
 import { Simulator } from "./simulator.js";
 import { Renderer, formatAction, formatGridCoordinate, formatNumber } from "./render.js";
-<<<<<<< HEAD
 import { createAlgorithm, getSelectableAlgorithms } from "./algorithms/registry.js";
 import { storeCompareState } from "./compareTransfer.js";
 import {
@@ -11,10 +10,7 @@ import {
   parseMapDocument,
   sanitizeMapFilename,
 } from "./mapStorage.js";
-=======
-import { algorithmRegistry, createAlgorithm } from "./algorithms/registry.js";
 import { createAlgorithmComparisonMap10x10 } from "./sampleMaps.js";
->>>>>>> 392a5e46fdee252ec7204aabc95543846291869c
 
 const HISTORY_RENDER_LIMIT = 20;
 const TRACE_RENDER_LIMIT = 20;
@@ -195,6 +191,8 @@ async function bindEvents() {
 
   elements.loadDemoMapButton.addEventListener("click", () => {
     simulator.loadState(createAlgorithmComparisonMap10x10());
+    currentMapName = "Algorithm comparison 10x10";
+    setMapStorageStatus("Loaded the 10x10 demo map.");
     updateInputsFromState(environment.getInitialState());
     updateButtonState();
   });
@@ -305,12 +303,8 @@ async function bindEvents() {
     simulator.clearNextActionCache();
     simulator.clearHistory();
     simulator.resetPositionHistory(nextState, null);
-<<<<<<< HEAD
     const nextAction = simulator.peekNextAction();
     renderer.render(nextState, nextAction, simulator.getCurrentTarget());
-=======
-    renderer.render(nextState, simulator.peekNextAction(), simulator.getCurrentTarget());
->>>>>>> 392a5e46fdee252ec7204aabc95543846291869c
     renderPositionHistory();
     renderAlgorithmMetrics();
     renderAlgorithmTrace();

@@ -151,16 +151,8 @@ function createCompareSlot(sharedInitialState, definition, cardElements) {
     });
 
     const initialState = environment.getState();
-<<<<<<< HEAD
     const nextAction = slot.simulator.peekNextAction();
     slot.renderer.render(initialState, nextAction, slot.simulator.getCurrentTarget());
-=======
-    slot.renderer.render(
-      initialState,
-      slot.simulator.peekNextAction(),
-      slot.simulator.getCurrentTarget()
-    );
->>>>>>> 392a5e46fdee252ec7204aabc95543846291869c
     renderCompareMetrics(slot);
     return slot;
   });
