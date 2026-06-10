@@ -2,10 +2,20 @@ import { Environment } from "./environment.js";
 import { simulationStateToPlain } from "./models.js";
 import { Simulator } from "./simulator.js";
 import { Renderer, formatAction, formatGridCoordinate, formatNumber } from "./render.js";
+<<<<<<< HEAD
+import { createAlgorithm, getSelectableAlgorithms } from "./algorithms/registry.js";
+import { storeCompareState } from "./compareTransfer.js";
+import {
+  createMapDocument,
+  MAX_MAP_FILE_BYTES,
+  parseMapDocument,
+  sanitizeMapFilename,
+} from "./mapStorage.js";
+=======
 import { algorithmRegistry, createAlgorithm } from "./algorithms/registry.js";
 import { createAlgorithmComparisonMap10x10 } from "./sampleMaps.js";
+>>>>>>> 392a5e46fdee252ec7204aabc95543846291869c
 
-const COMPARE_STATE_STORAGE_KEY = "cleanerbot.compare.initialState";
 const HISTORY_RENDER_LIMIT = 20;
 const TRACE_RENDER_LIMIT = 20;
 
@@ -26,11 +36,17 @@ const elements = {
   generateButton: document.getElementById("generateButton"),
   loadDemoMapButton: document.getElementById("loadDemoMapButton"),
   resetButton: document.getElementById("resetButton"),
+  saveMapButton: document.getElementById("saveMapButton"),
+  loadMapButton: document.getElementById("loadMapButton"),
+  loadMapInput: document.getElementById("loadMapInput"),
+  mapStorageStatus: document.getElementById("mapStorageStatus"),
   previousStepButton: document.getElementById("previousStepButton"),
   nextStepButton: document.getElementById("nextStepButton"),
   runButton: document.getElementById("runButton"),
   stopButton: document.getElementById("stopButton"),
+  compareForm: document.getElementById("compareForm"),
   compareButton: document.getElementById("compareButton"),
+  compareStateKeyInput: document.getElementById("compareStateKeyInput"),
   speedButtons: document.querySelectorAll(".speed-button"),
   batteryValue: document.getElementById("batteryValue"),
   capacityValue: document.getElementById("capacityValue"),
@@ -51,6 +67,10 @@ const elements = {
   algorithmTrace: document.getElementById("algorithmTrace"),
   tracePopup: document.getElementById("tracePopup"),
   traceToggleButton: document.getElementById("traceToggleButton"),
+  saveMapDialog: document.getElementById("saveMapDialog"),
+  saveMapForm: document.getElementById("saveMapForm"),
+  saveMapNameInput: document.getElementById("saveMapNameInput"),
+  cancelSaveMapButton: document.getElementById("cancelSaveMapButton"),
   statusBadge: document.getElementById("statusBadge"),
 };
 
@@ -72,6 +92,7 @@ const renderer = new Renderer({
 
 let simulator = null;
 let renderedTraceSignature = "";
+let currentMapName = "CleanerBot map";
 
 function getMapConfigFromInputs() {
   updateCountLimitsFromInputs();
@@ -89,7 +110,7 @@ function getMapConfigFromInputs() {
 function renderAlgorithmOptions() {
   elements.algorithmSelect.innerHTML = "";
 
-  algorithmRegistry.forEach((algorithm) => {
+  getSelectableAlgorithms().forEach((algorithm) => {
     const option = document.createElement("option");
     option.value = algorithm.id;
     option.textContent = algorithm.label;
@@ -111,6 +132,8 @@ function updateButtonState() {
   elements.generateButton.disabled = !isReady || isRunning;
   elements.loadDemoMapButton.disabled = !isReady || isRunning;
   elements.resetButton.disabled = !isReady;
+  elements.saveMapButton.disabled = !isReady || isRunning;
+  elements.loadMapButton.disabled = !isReady || isRunning;
   elements.compareButton.disabled = !isReady || isRunning;
   elements.algorithmSelect.disabled = !isReady || isRunning;
   elements.editToolSelect.disabled = !isReady || isRunning;
@@ -164,6 +187,8 @@ async function bindEvents() {
 
   elements.generateButton.addEventListener("click", () => {
     simulator.generate(getMapConfigFromInputs());
+    currentMapName = "CleanerBot map";
+    setMapStorageStatus("");
     updateInputsFromState(environment.getInitialState());
     updateButtonState();
   });
@@ -178,6 +203,59 @@ async function bindEvents() {
     simulator.reset();
     updateInputsFromState(environment.getInitialState());
     updateButtonState();
+  });
+
+  elements.saveMapButton.addEventListener("click", () => {
+    elements.saveMapNameInput.value = currentMapName;
+    elements.saveMapDialog.showModal();
+    elements.saveMapNameInput.select();
+  });
+
+  elements.cancelSaveMapButton.addEventListener("click", () => {
+    elements.saveMapDialog.close();
+  });
+
+  elements.saveMapForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const mapName = elements.saveMapNameInput.value.trim();
+
+    if (!mapName) {
+      elements.saveMapNameInput.focus();
+      return;
+    }
+
+    const mapDocument = createMapDocument(mapName, environment.getInitialState());
+    downloadMapDocument(mapDocument);
+    currentMapName = mapDocument.name;
+    elements.saveMapDialog.close();
+    setMapStorageStatus(`Saved "${currentMapName}" as JSON.`);
+  });
+
+  elements.loadMapButton.addEventListener("click", () => {
+    elements.loadMapInput.value = "";
+    elements.loadMapInput.click();
+  });
+
+  elements.loadMapInput.addEventListener("change", async () => {
+    const [file] = elements.loadMapInput.files;
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      if (file.size > MAX_MAP_FILE_BYTES) {
+        throw new Error("The selected map file is larger than 1 MB.");
+      }
+
+      const loadedMap = parseMapDocument(await file.text());
+      simulator.loadState(loadedMap.state);
+      currentMapName = loadedMap.name;
+      updateInputsFromState(environment.getInitialState());
+      setMapStorageStatus(`Loaded "${currentMapName}".`);
+    } catch (error) {
+      setMapStorageStatus(error.message || "Cannot load this map file.", true);
+    }
   });
 
   elements.previousStepButton.addEventListener("click", () => {
@@ -201,10 +279,7 @@ async function bindEvents() {
     updateButtonState();
   });
 
-  elements.compareButton.addEventListener("click", () => {
-    saveCompareState();
-    window.location.href = "compare.html";
-  });
+  elements.compareForm.addEventListener("submit", prepareCompareNavigation);
 
   elements.speedButtons.forEach((button) => {
     button.addEventListener("click", () => {
@@ -230,7 +305,12 @@ async function bindEvents() {
     simulator.clearNextActionCache();
     simulator.clearHistory();
     simulator.resetPositionHistory(nextState, null);
+<<<<<<< HEAD
+    const nextAction = simulator.peekNextAction();
+    renderer.render(nextState, nextAction, simulator.getCurrentTarget());
+=======
     renderer.render(nextState, simulator.peekNextAction(), simulator.getCurrentTarget());
+>>>>>>> 392a5e46fdee252ec7204aabc95543846291869c
     renderPositionHistory();
     renderAlgorithmMetrics();
     renderAlgorithmTrace();
@@ -420,11 +500,34 @@ function setTracePopupOpen(isOpen) {
   elements.traceToggleButton.setAttribute("aria-expanded", `${isOpen}`);
 }
 
-function saveCompareState() {
-  window.sessionStorage.setItem(
-    COMPARE_STATE_STORAGE_KEY,
-    JSON.stringify(simulationStateToPlain(environment.getInitialState()))
+function prepareCompareNavigation(event) {
+  try {
+    elements.compareStateKeyInput.value = storeCompareState(
+      window.localStorage,
+      simulationStateToPlain(environment.getInitialState())
+    );
+  } catch {
+    event.preventDefault();
+    setMapStorageStatus("Cannot prepare the map for comparison.", true);
+  }
+}
+
+function downloadMapDocument(mapDocument) {
+  const blob = new Blob(
+    [`${JSON.stringify(mapDocument, null, 2)}\n`],
+    { type: "application/json" }
   );
+  const url = URL.createObjectURL(blob);
+  const link = window.document.createElement("a");
+  link.href = url;
+  link.download = sanitizeMapFilename(mapDocument.name);
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function setMapStorageStatus(message, isError = false) {
+  elements.mapStorageStatus.textContent = message;
+  elements.mapStorageStatus.classList.toggle("error", isError);
 }
 
 function setActiveSpeedButton(activeButton) {

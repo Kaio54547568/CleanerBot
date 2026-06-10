@@ -15,7 +15,11 @@ export class BaseAlgorithm {
 
   reset() {
     this.resetMetrics();
+<<<<<<< HEAD
+    this.setCurrentTarget(null);
+=======
     this.clearCurrentTarget();
+>>>>>>> 392a5e46fdee252ec7204aabc95543846291869c
   }
 
   nextAction(state) {
@@ -57,6 +61,33 @@ export class BaseAlgorithm {
     return cloneMetrics(this.metrics);
   }
 
+  getStateSnapshot() {
+    const snapshot = {};
+
+    Object.keys(this).forEach((key) => {
+      snapshot[key] = cloneRuntimeValue(this[key]);
+    });
+
+    return snapshot;
+  }
+
+  restoreStateSnapshot(snapshot) {
+    if (!snapshot) {
+      this.reset();
+      return;
+    }
+
+    Object.keys(this).forEach((key) => {
+      if (!(key in snapshot)) {
+        delete this[key];
+      }
+    });
+
+    Object.entries(snapshot).forEach(([key, value]) => {
+      this[key] = cloneRuntimeValue(value);
+    });
+  }
+
   restoreMetrics(snapshot) {
     this.metrics = snapshot
       ? normalizeMetrics(snapshot, this.name)
@@ -87,6 +118,16 @@ export class BaseAlgorithm {
 
   setHeuristicDescription(description) {
     this.metrics.heuristicDescription = description;
+  }
+
+  setCurrentTarget(position) {
+    this.currentTarget = position
+      ? { x: position.x, y: position.y }
+      : null;
+  }
+
+  getCurrentTarget() {
+    return this.currentTarget ? { ...this.currentTarget } : null;
   }
 
   recordNodeVisit({ position, goal = null, g = null, h = null, note = null }) {
@@ -272,7 +313,7 @@ function getNow() {
 }
 
 function cloneMetrics(metrics) {
-  return JSON.parse(JSON.stringify(metrics));
+  return cloneRuntimeValue(metrics);
 }
 
 function createEmptyMetrics(name) {
@@ -337,4 +378,41 @@ function cloneTraceEntries(entries) {
     position: entry.position ? { ...entry.position } : null,
     goal: entry.goal ? { ...entry.goal } : null,
   }));
+}
+
+function cloneRuntimeValue(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(cloneRuntimeValue);
+  }
+
+  if (value instanceof Map) {
+    return new Map(
+      [...value.entries()].map(([key, entryValue]) => [
+        cloneRuntimeValue(key),
+        cloneRuntimeValue(entryValue),
+      ])
+    );
+  }
+
+  if (value instanceof Set) {
+    return new Set([...value].map(cloneRuntimeValue));
+  }
+
+  const clone = {};
+
+  Object.entries(value).forEach(([key, entryValue]) => {
+    clone[key] = cloneRuntimeValue(entryValue);
+  });
+
+  return clone;
 }

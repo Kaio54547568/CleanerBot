@@ -265,6 +265,13 @@ h3 {
   content: "R";
 }
 
+.cell.target-trash {
+  border-color: #b91c1c;
+  color: #991b1b;
+  background: #fecaca;
+  box-shadow: inset 0 0 0 3px #dc2626;
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;
@@ -295,9 +302,9 @@ h3 {
   background: var(--trash);
 }
 
-.legend-box.current-target {
-  background: #fde68a;
-  border: 2px solid #f59e0b;
+.legend-box.target-trash {
+  border-color: #b91c1c;
+  background: #ef4444;
 }
 
 .legend-box.obstacle {
@@ -567,9 +574,52 @@ button:disabled {
   background: var(--primary);
 }
 
+.compare-form {
+  margin-top: 12px;
+}
+
 .compare-button {
   width: 100%;
-  margin-top: 12px;
+}
+
+.map-storage-status {
+  min-height: 18px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.map-storage-status.error {
+  color: #b42318;
+}
+
+.map-dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 20px 60px rgb(29 39 51 / 28%);
+}
+
+.map-dialog::backdrop {
+  background: rgb(29 39 51 / 42%);
+}
+
+.map-dialog h2 {
+  margin-bottom: 16px;
+}
+
+.map-dialog input {
+  margin-bottom: 18px;
+}
+
+.dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .speed-controls {

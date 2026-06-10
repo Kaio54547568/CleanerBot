@@ -25,6 +25,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
   computeNextAction(state) {
     const { robot, map } = state;
     this.rememberPosition(state);
+    this.setCurrentTarget(null);
 
     if (map.done) {
       this.clearCurrentTarget();
@@ -64,6 +65,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
       return ACTIONS.STAY;
     }
 
+    this.setCurrentTarget(target);
     let route = this.getRouteToTarget(state, target);
 
     if ((!route || route.length < 2) && !samePosition(target, map.chargingStation)) {

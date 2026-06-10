@@ -10,8 +10,7 @@ export class Simulator {
     this.speedMultiplier = 1;
     this.intervalId = null;
     this.cachedNextAction = undefined;
-    this.previousStates = [];
-    this.previousMetricSnapshots = [];
+    this.previousStepSnapshots = [];
     this.positionHistory = [];
     this.positionHistoryTotal = 0;
     this.resetPositionHistory(this.environment.getState());
@@ -41,9 +40,16 @@ export class Simulator {
     this.algorithm.reset();
     this.clearNextActionCache();
     this.clearHistory();
+<<<<<<< HEAD
+    const loadedState = this.environment.loadState(state);
+    this.resetPositionHistory(loadedState, null);
+    this.onStateChange(loadedState);
+    return loadedState;
+=======
     const nextState = this.environment.loadState(state);
     this.resetPositionHistory(nextState);
     this.onStateChange(nextState);
+>>>>>>> 392a5e46fdee252ec7204aabc95543846291869c
   }
 
   updateConfig(config) {
@@ -69,10 +75,9 @@ export class Simulator {
   step() {
     const previousState = this.environment.getState();
     const action = this.peekNextAction();
-    const previousMetrics = this.algorithm.getMetricsSnapshot();
+    const previousStepSnapshot = this.createStepSnapshot(previousState);
     this.clearNextActionCache();
-    this.previousStates.push(previousState);
-    this.previousMetricSnapshots.push(previousMetrics);
+    this.previousStepSnapshots.push(previousStepSnapshot);
     const nextState = this.environment.applyAction(action);
     // Battery usage is derived from the real state transition, not estimated by the algorithm.
     this.algorithm.addBatteryConsumed(
@@ -90,22 +95,18 @@ export class Simulator {
   }
 
   previousStep() {
-    const previousState = this.previousStates.pop();
-    const previousMetrics = this.previousMetricSnapshots.pop();
+    const snapshot = this.previousStepSnapshots.pop();
 
-    if (!previousState) {
+    if (!snapshot) {
       return;
     }
 
     this.stop();
-    this.algorithm.reset();
-    this.algorithm.restoreMetrics(previousMetrics);
-    this.clearNextActionCache();
-    const restoredState = this.environment.restoreState(previousState);
-    if (this.positionHistory.length > 1) {
-      this.positionHistory.pop();
-      this.positionHistoryTotal = Math.max(1, this.positionHistoryTotal - 1);
-    }
+    this.restoreAlgorithmSnapshot(snapshot.algorithm);
+    this.cachedNextAction = snapshot.cachedNextAction;
+    this.positionHistory = snapshot.positionHistory.map((entry) => ({ ...entry }));
+    this.positionHistoryTotal = snapshot.positionHistoryTotal;
+    const restoredState = this.environment.restoreState(snapshot.state);
     this.onStateChange(restoredState);
   }
 
@@ -127,12 +128,11 @@ export class Simulator {
   }
 
   clearHistory() {
-    this.previousStates = [];
-    this.previousMetricSnapshots = [];
+    this.previousStepSnapshots = [];
   }
 
   canStepBack() {
-    return this.previousStates.length > 0;
+    return this.previousStepSnapshots.length > 0;
   }
 
   resetPositionHistory(state, action = state.latestAction) {
@@ -188,6 +188,10 @@ export class Simulator {
     return this.algorithm?.getMetrics() ?? null;
   }
 
+  getCurrentTarget() {
+    return this.algorithm?.getCurrentTarget?.() ?? null;
+  }
+
   setSpeedMultiplier(multiplier) {
     this.speedMultiplier = multiplier;
     this.tickMs = this.baseTickMs / multiplier;
@@ -219,6 +223,40 @@ export class Simulator {
 
   isRunning() {
     return this.intervalId !== null;
+  }
+
+  createStepSnapshot(state) {
+    return {
+      state,
+      algorithm: this.createAlgorithmSnapshot(),
+      cachedNextAction: this.cachedNextAction,
+      positionHistory: this.positionHistory.map((entry) => ({ ...entry })),
+      positionHistoryTotal: this.positionHistoryTotal,
+    };
+  }
+
+  createAlgorithmSnapshot() {
+    if (typeof this.algorithm.getStateSnapshot === "function") {
+      return {
+        type: "state",
+        value: this.algorithm.getStateSnapshot(),
+      };
+    }
+
+    return {
+      type: "metrics",
+      value: this.algorithm.getMetricsSnapshot?.() ?? null,
+    };
+  }
+
+  restoreAlgorithmSnapshot(snapshot) {
+    if (snapshot?.type === "state" && typeof this.algorithm.restoreStateSnapshot === "function") {
+      this.algorithm.restoreStateSnapshot(snapshot.value);
+      return;
+    }
+
+    this.algorithm.reset?.();
+    this.algorithm.restoreMetrics?.(snapshot?.value ?? null);
   }
 
   trimPositionHistory() {

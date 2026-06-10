@@ -7,6 +7,7 @@ export const algorithmRegistry = [
   {
     id: "dfs",
     label: "DFS",
+    selectable: false,
     loadClass: () => import("./dfs.js").then((module) => module.DFSAlgorithm),
   },
   {
@@ -30,6 +31,10 @@ export const algorithmRegistry = [
     loadClass: () => import("./greedy.js").then((module) => module.GreedyAlgorithm),
   },
 ];
+
+export function getSelectableAlgorithms() {
+  return algorithmRegistry.filter((algorithm) => algorithm.selectable !== false);
+}
 
 export async function createAlgorithm(id) {
   const definition = algorithmRegistry.find((algorithm) => algorithm.id === id) ?? algorithmRegistry[0];
