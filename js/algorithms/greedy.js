@@ -74,6 +74,8 @@ export class GreedyAlgorithm extends BaseAlgorithm {
       return this.getChargingAction(state);
     }
 
+    this.setCurrentTarget(target);
+
     if (samePosition(robot, target)) {
       return this.getActionAtTarget(state, target);
     }

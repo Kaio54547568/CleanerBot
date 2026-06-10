@@ -28,6 +28,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
     this.setCurrentTarget(null);
 
     if (map.done) {
+      this.clearCurrentTarget();
       this.clearRoute();
       return ACTIONS.STAY;
     }
@@ -57,6 +58,7 @@ export class BFSAlgorithm extends BaseAlgorithm {
     }
 
     let target = this.chooseWorkTarget(state);
+    this.setCurrentTarget(target);
 
     if (!target) {
       this.clearRoute();

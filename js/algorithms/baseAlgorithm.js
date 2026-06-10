@@ -9,12 +9,17 @@ const DEFAULT_TRACE_LIMIT = 1000;
 export class BaseAlgorithm {
   constructor() {
     this.name = "BaseAlgorithm";
+    this.currentTarget = null;
     this.resetMetrics();
   }
 
   reset() {
     this.resetMetrics();
+<<<<<<< HEAD
     this.setCurrentTarget(null);
+=======
+    this.clearCurrentTarget();
+>>>>>>> 392a5e46fdee252ec7204aabc95543846291869c
   }
 
   nextAction(state) {
@@ -31,6 +36,18 @@ export class BaseAlgorithm {
 
   resetMetrics() {
     this.metrics = createEmptyMetrics(this.name);
+  }
+
+  setCurrentTarget(target) {
+    this.currentTarget = target ? { x: target.x, y: target.y } : null;
+  }
+
+  clearCurrentTarget() {
+    this.currentTarget = null;
+  }
+
+  getCurrentTarget() {
+    return this.currentTarget ? { ...this.currentTarget } : null;
   }
 
   getMetrics() {
