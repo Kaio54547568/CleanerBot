@@ -15,11 +15,7 @@ export class BaseAlgorithm {
 
   reset() {
     this.resetMetrics();
-<<<<<<< HEAD
     this.setCurrentTarget(null);
-=======
-    this.clearCurrentTarget();
->>>>>>> 392a5e46fdee252ec7204aabc95543846291869c
   }
 
   nextAction(state) {
@@ -118,16 +114,6 @@ export class BaseAlgorithm {
 
   setHeuristicDescription(description) {
     this.metrics.heuristicDescription = description;
-  }
-
-  setCurrentTarget(position) {
-    this.currentTarget = position
-      ? { x: position.x, y: position.y }
-      : null;
-  }
-
-  getCurrentTarget() {
-    return this.currentTarget ? { ...this.currentTarget } : null;
   }
 
   recordNodeVisit({ position, goal = null, g = null, h = null, note = null }) {

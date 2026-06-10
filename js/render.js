@@ -37,15 +37,9 @@ export class Renderer {
     this.statusBadgeElement = statusBadgeElement;
   }
 
-<<<<<<< HEAD
-  render(state, nextAction = null, targetPosition = null) {
-    this.renderCoordinateLabels(state);
-    this.renderGrid(state, targetPosition);
-=======
   render(state, nextAction = null, currentTarget = null) {
     this.renderCoordinateLabels(state);
     this.renderGrid(state, currentTarget);
->>>>>>> 392a5e46fdee252ec7204aabc95543846291869c
     this.renderStats(state, nextAction);
   }
 
@@ -77,11 +71,7 @@ export class Renderer {
     }
   }
 
-<<<<<<< HEAD
-  renderGrid(state, targetPosition = null) {
-=======
   renderGrid(state, currentTarget = null) {
->>>>>>> 392a5e46fdee252ec7204aabc95543846291869c
     const { robot, map } = state;
     this.gridElement.innerHTML = "";
     this.gridElement.style.gridTemplateColumns = `repeat(${map.grid_size_x}, minmax(0, 1fr))`;
@@ -104,10 +94,6 @@ export class Renderer {
         const hasCharger = samePosition(position, map.chargingStation);
         const hasTrashCan = samePosition(position, map.trashCan);
         const hasRobot = samePosition(position, robot);
-        const isTargetTrash =
-          hasTrash &&
-          targetPosition &&
-          samePosition(position, targetPosition);
 
         if (hasObstacle) {
           cell.classList.add("obstacle");
@@ -119,6 +105,7 @@ export class Renderer {
 
         if (isCurrentTrashTarget) {
           cell.classList.add("current-target");
+          cell.classList.add("target-trash");
           cell.title += " - Current target";
         }
 
@@ -132,10 +119,6 @@ export class Renderer {
 
         if (hasRobot) {
           cell.classList.add("robot");
-        }
-
-        if (isTargetTrash) {
-          cell.classList.add("target-trash");
         }
 
         const iconInfo = getCellIcon({ hasRobot, hasObstacle, hasTrash, hasCharger, hasTrashCan });

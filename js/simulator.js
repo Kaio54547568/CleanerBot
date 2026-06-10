@@ -40,16 +40,10 @@ export class Simulator {
     this.algorithm.reset();
     this.clearNextActionCache();
     this.clearHistory();
-<<<<<<< HEAD
     const loadedState = this.environment.loadState(state);
     this.resetPositionHistory(loadedState, null);
     this.onStateChange(loadedState);
     return loadedState;
-=======
-    const nextState = this.environment.loadState(state);
-    this.resetPositionHistory(nextState);
-    this.onStateChange(nextState);
->>>>>>> 392a5e46fdee252ec7204aabc95543846291869c
   }
 
   updateConfig(config) {
@@ -117,10 +111,6 @@ export class Simulator {
     }
 
     return this.cachedNextAction;
-  }
-
-  getCurrentTarget() {
-    return this.algorithm?.getCurrentTarget?.() ?? null;
   }
 
   clearNextActionCache() {
