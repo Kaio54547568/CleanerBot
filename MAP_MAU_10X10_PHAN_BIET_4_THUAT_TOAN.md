@@ -1,166 +1,126 @@
-# MAP MẪU 10X10 LÀM RÕ SỰ KHÁC BIỆT GIỮA BFS, IDS, A* VÀ IDA*
+# CÁC MAP MẪU 10X10 PHỤC VỤ DEMO
 
-## 1. Mục đích của map
+## 1. Cách sử dụng
 
-Map này được thiết kế để làm rõ các khác biệt thực sự trong code của dự án:
+Trong bảng `Controls`, mở dropdown `Load demo map` và chọn map cần sử dụng. Map được tải ngay sau khi chọn.
 
-- BFS và IDS đều tìm được rác có khoảng cách đường đi ngắn nhất, nhưng phá hòa theo thứ tự duyệt khác nhau.
-- A* và IDA* sử dụng khoảng cách Manhattan để định hướng tìm kiếm.
-- A* và IDA* có cùng quy tắc chọn rác trong dự án, nhưng khác cách quản lý quá trình tìm đường.
-- Các hành lang và ngõ cụt làm số nút duyệt, bộ nhớ và thứ tự dọn rác khác nhau rõ rệt.
+Để thử lại cùng map với thuật toán khác:
 
-Không nên khẳng định rằng map sẽ khiến cả bốn thuật toán luôn chọn bốn ô rác khác nhau. Theo code hiện tại, A* và IDA* sử dụng cùng hàm chọn mục tiêu nên thường chọn cùng một ô rác.
+1. Chọn map từ dropdown.
+2. Chọn thuật toán.
+3. Quan sát ô rác mục tiêu màu vàng.
+4. Nhấn `Next Step` để giải thích từng bước hoặc `Run Algorithm` để chạy toàn bộ.
+5. Chọn lại map từ dropdown trước khi thử thuật toán tiếp theo.
 
-## 2. Cách tải map trên giao diện
+Tất cả preset đều có kích thước `10x10`.
 
-1. Mở dự án bằng trình duyệt.
-2. Trong bảng `Controls`, nhấn nút `Load demo map`.
-3. Chọn một trong bốn thuật toán: BFS, IDS, A* hoặc IDA*.
-4. Quan sát ô rác màu vàng, sau đó nhấn `Next Step` hoặc `Run Algorithm`.
-5. Nhấn `Reset map` trước khi đổi sang thuật toán khác.
-
-Để chạy phân tích tự động:
+Chạy phân tích tự động bằng lệnh:
 
 ```powershell
-node analyze_distinguishing_map_10x10.mjs
+node analyze_demo_maps.mjs
 ```
 
-## 3. Cấu hình map
+## 2. Map Equal-distance targets
 
-- Kích thước: `10 x 10`
-- Robot và trạm sạc: `A1`
-- Thùng rác: `J10`
-- Sức chứa tối đa: `3`
-- Mất pin mỗi bước: `1`
-- Pin ban đầu: `100`
+### Mục đích demo
 
-Các ô rác:
+Minh họa cách các thuật toán phá hòa khi có nhiều ô rác gần robot như nhau.
 
-```text
-A5, E1, J1, J5, E10, J10
-```
+Robot bắt đầu tại `E5`. Hai ô rác `E2` và `H5` đều cách robot 3 bước.
 
-Các chướng ngại vật:
+- BFS chọn `E2` vì thứ tự mở rộng của BFS ưu tiên hướng lên trước hướng phải.
+- IDS chọn `H5` do thứ tự duyệt sâu trong trường hợp phá hòa.
+- A* và IDA* chọn `H5` vì hai rác có cùng Manhattan và `H5` đứng trước trong danh sách rác.
 
-```text
-B2, C2, D2, F2, G2, H2, I2,
-D3, F3, I3,
-B4, D4, F4, G4, I4,
-B5, D5, G5, I5,
-B6, D6, F6, G6, I6,
-B7, F7, I7,
-B8, C8, D8, F8, H8, I8,
-D9, F9
-```
+Map này phù hợp để giải thích rằng hai thuật toán cùng tìm đường ngắn nhất vẫn có thể chọn mục tiêu khác nhau khi nhiều lựa chọn có chi phí bằng nhau.
 
-Ký hiệu:
+## 3. Map Long wall detour
 
-- `R`: Robot và trạm sạc
-- `T`: Rác
-- `B`: Thùng rác
-- `#`: Chướng ngại vật
-- `.`: Ô trống
+### Mục đích demo
 
-```text
-      A B C D E F G H I J
- 1    R . . . T . . . . T
- 2    . # # # . # # # # .
- 3    . . . # . # . . # .
- 4    . # . # . # # . # .
- 5    T # . # . . # . # T
- 6    . # . # . # # . # .
- 7    . # . . . # . . # .
- 8    . # # # . # . # # .
- 9    . . . # . # . . . .
-10    . . . . T . . . . B
-```
+So sánh cách BFS, IDS, A* và IDA* tìm đường khi khoảng cách Manhattan không thể hiện được quãng đường thực tế.
 
-## 4. Tình huống phân biệt đầu tiên
+Một bức tường dài từ `E1` đến `E8` buộc robot phải đi xuống gần cuối bản đồ rồi mới có thể sang khu vực bên phải.
 
-Từ `A1`, hai ô rác `E1` và `A5` đều cách robot đúng 4 bước:
+Map này phù hợp để quan sát:
 
-```text
-A1 → B1 → C1 → D1 → E1
-A1 → A2 → A3 → A4 → A5
-```
+- Algorithm Trace và thứ tự node được duyệt.
+- Tổng số `Visited nodes`.
+- `Required memory`.
+- Khác biệt giữa tìm kiếm không heuristic và tìm kiếm sử dụng Manhattan.
+- Việc heuristic vẫn có thể hướng về phía mục tiêu dù đang bị tường chắn.
 
-Đây là tình huống phá hòa có chủ ý.
+## 4. Map Battery reserve
 
-### BFS chọn E1
+### Mục đích demo
 
-BFS duyệt theo từng lớp khoảng cách và đưa hàng xóm vào hàng đợi theo thứ tự:
+Minh họa việc robot ưu tiên an toàn pin thay vì hút ô rác đang ở ngay gần.
 
-```text
-Lên → Phải → Xuống → Trái
-```
+Robot bắt đầu tại `E5` với `40%` pin, mất `5%` pin cho mỗi bước. Trạm sạc ở `A1`.
 
-Tại `A1`, hướng lên và trái không hợp lệ. Hướng phải được đưa vào hàng đợi trước hướng xuống. Vì vậy BFS gặp `E1` trước `A5`.
+- Quãng đường từ `E5` về `A1` dài 8 bước và tiêu thụ đúng `40%` pin.
+- Rác tại `E4` chỉ cách robot 1 bước.
+- Nếu robot đi tới `E4`, hút rác rồi mới về trạm, tổng pin yêu cầu lớn hơn `40%`.
 
-Kết quả:
+Vì vậy thuật toán không chọn rác gần mà chọn trạm sạc trước. Map này phù hợp để giải thích hàm kiểm tra hành trình an toàn và lý do ô rác gần nhất chưa chắc được chọn.
 
-```text
-Mục tiêu đầu tiên: E1
-Hành động đầu tiên: đi sang phải
-```
+## 5. Map Capacity and trash can
 
-### IDS chọn A5
+### Mục đích demo
 
-IDS tăng dần giới hạn độ sâu: `0, 1, 2, 3, 4, ...`.
+Minh họa cách sức chứa làm thay đổi mục tiêu của robot.
 
-Ở giới hạn 4, cả `A5` và `E1` đều có thể được tìm thấy. Tuy nhiên cách duyệt đệ quy của IDS khiến nhánh đi xuống được xét trước nhánh đi sang phải. Vì vậy IDS gặp `A5` trước.
+Robot có sức chứa tối đa bằng `2`. Các ô rác đầu tiên nằm gần nhau tại `A2`, `A3` và `A4`, trong khi thùng rác nằm tại `J5`.
 
-Kết quả:
+Sau khi hút hai ô rác:
 
-```text
-Mục tiêu đầu tiên: A5
-Hành động đầu tiên: đi xuống
-```
+- Sức chứa đạt `2/2`.
+- Robot ngừng chọn rác tiếp theo.
+- Mục tiêu chuyển sang thùng rác `J5`.
+- Sau khi đổ rác, robot tiếp tục chọn các ô rác còn lại.
 
-### A* và IDA* chọn A5
+Map này phù hợp để giải thích thứ tự ưu tiên nghiệp vụ: khi khoang đầy, việc đi đổ rác quan trọng hơn việc chọn rác gần.
 
-A* và IDA* sắp xếp các ô rác theo Manhattan trước khi tìm đường. `A5` và `E1` đều có Manhattan bằng 4. Khi bằng nhau, thứ tự trong danh sách rác được giữ nguyên; map mẫu đặt `A5` trước `E1`.
+## 6. Map Capacity 4/5, charge first
 
-Sau đó hai thuật toán tìm đường thực tế và kiểm tra pin. Vì hai đường cùng dài và đều an toàn, `A5` tiếp tục được giữ làm mục tiêu tốt nhất.
+### Mục đích demo
 
-Kết quả:
+Minh họa trường hợp robot chưa đầy khoang chứa nhưng vẫn quyết định sạc trước khi nhặt rác tiếp theo.
 
-```text
-Mục tiêu đầu tiên: A5
-Hành động đầu tiên: đi xuống
-```
+Trạng thái ban đầu:
 
-## 5. Vai trò của hệ thống chướng ngại vật
+- Robot ở `E5`, pin còn `20%`, đang chứa `4/5` rác.
+- Trạm sạc ở `A5`.
+- Rác tiếp theo ở `F5`, chỉ cách robot 1 bước.
+- Thùng rác ở `E1`.
+- Mỗi bước di chuyển mất `5%` pin.
 
-Các bức tường tạo thành nhiều hành lang hẹp và ngõ cụt. Điều này giúp thể hiện:
+Robot đủ đúng `20%` pin để đi từ `E5` về trạm sạc `A5`. Tuy nhiên, nếu robot đi tới `F5` và hút rác:
 
-- BFS phải mở rộng tương đối đồng đều ra xung quanh.
-- IDS lặp lại việc tìm kiếm từ đầu mỗi khi tăng giới hạn độ sâu.
-- A* ưu tiên các ô có `f(n) = g(n) + h(n)` nhỏ.
-- IDA* tìm kiếm sâu với giới hạn `f`, sau đó tăng giới hạn và tìm lại khi cần.
-- Tất cả thuật toán đều phải né chướng ngại vật và không được chọn đường Manhattan xuyên qua tường.
+- Khoang chứa sẽ đạt `5/5`.
+- Robot bắt buộc phải đi đến thùng rác `E1`.
+- Sau khi đổ rác, robot vẫn phải đủ pin quay về trạm sạc `A5`.
+- Tổng lượng pin hiện tại không đủ cho chuỗi hành động an toàn đó.
 
-## 6. Kết quả chạy hiện tại
+Vì vậy, mục tiêu đầu tiên của robot là `A5`, không phải ô rác `F5`. Sau khi sạc đầy, robot mới quay lại `F5`, hút rác, đi đổ tại `E1` và trở về trạm sạc.
 
-Kết quả từ script `analyze_distinguishing_map_10x10.mjs`:
+Map này phù hợp để giải thích rằng robot không chỉ kiểm tra pin để đi tới ô rác, mà còn tính cả hành trình bắt buộc sau khi hút rác.
 
-| Thuật toán | Mục tiêu đầu | Hành động đầu | Thứ tự dọn rác | Tổng bước | Tổng nút duyệt | Bộ nhớ đỉnh |
-|---|---|---|---|---:|---:|---:|
-| BFS | E1 | Phải | E1 → J1 → J5 → J10 → E10 → A5 | 72 | 863 | 68 |
-| IDS | A5 | Xuống | A5 → E1 → J1 → J10 → E10 → J5 | 72 | 3591 | 80 |
-| A* | A5 | Xuống | A5 → E1 → J1 → J10 → J5 → E10 | 72 | 875 | 36 |
-| IDA* | A5 | Xuống | A5 → E1 → J1 → J10 → J5 → E10 | 72 | 980 | 52 |
+## 7. Gợi ý trình tự demo
 
-Số liệu phản ánh cách cài đặt hiện tại của dự án, bao gồm cả những lần thuật toán tìm đường để kiểm tra pin an toàn. Vì vậy không nên dùng bảng này để kết luận chung rằng một thuật toán luôn tốt hơn thuật toán khác trong mọi trường hợp.
+Nên trình bày theo thứ tự:
 
-## 7. Nội dung trình bày khi demo
+1. `Equal-distance targets`: giải thích cách chọn mục tiêu và phá hòa.
+2. `Long wall detour`: giải thích cách tìm đường, tránh vật cản và so sánh metrics.
+3. `Battery reserve`: giải thích kiểm tra pin trước khi chấp nhận mục tiêu.
+4. `Capacity 4/5, charge first`: giải thích robot dự đoán hậu quả sau khi hút rác.
+5. `Capacity and trash can`: giải thích robot đổi mục tiêu theo trạng thái sức chứa.
 
-Có thể trình bày ngắn gọn như sau:
+Trình tự này đi từ quyết định tìm kiếm cơ bản đến các ràng buộc nghiệp vụ của CleanerBot.
 
-> “Map này đặt hai ô rác E1 và A5 cách robot cùng 4 bước. BFS chọn E1 vì hàng đợi của BFS ưu tiên nhánh sang phải trước nhánh đi xuống. IDS chọn A5 vì cách tìm kiếm sâu có giới hạn của IDS xét nhánh đi xuống trước trong tình huống phá hòa. A* và IDA* cũng chọn A5 vì hai rác có cùng Manhattan và A5 đứng trước trong danh sách mục tiêu. Hệ thống hành lang phía dưới giúp thể hiện rõ sự khác nhau về số nút duyệt và bộ nhớ. IDS phải tìm lại nhiều lần khi tăng giới hạn độ sâu, trong khi A* dùng heuristic để định hướng tìm kiếm.”
+## 8. Lưu ý khi so sánh
 
-## 8. Điểm cần nhấn mạnh
-
-- Khác biệt đầu tiên đến từ quy tắc phá hòa, không phải do một thuật toán tìm được đường ngắn hơn.
-- Cả bốn thuật toán đều kiểm tra pin trước khi chấp nhận ô rác.
-- A* và IDA* có cùng cách chọn rác trong code hiện tại.
-- Sự khác nhau lớn nhất giữa A* và IDA* nằm ở cách tìm đường và quản lý bộ nhớ, không nằm ở mục tiêu cuối cùng.
+- A* và IDA* đang sử dụng cùng quy tắc chọn rác, nên thường chọn cùng mục tiêu.
+- Số node duyệt bao gồm cả những lần tìm đường để kiểm tra pin an toàn.
+- Tổng số bước của toàn nhiệm vụ phụ thuộc cả thứ tự chọn rác, đường đi, số lần hút, đổ và sạc.
+- Một map không thể hiện tốt mọi khác biệt; mỗi preset được thiết kế để tập trung vào một câu hỏi demo cụ thể.

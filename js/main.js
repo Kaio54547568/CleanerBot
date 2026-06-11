@@ -10,10 +10,10 @@ import {
   parseMapDocument,
   sanitizeMapFilename,
 } from "./mapStorage.js";
-import { createAlgorithmComparisonMap10x10 } from "./sampleMaps.js";
+import { createSampleMap, getSampleMapPreset, sampleMapRegistry } from "./sampleMaps.js";
 
 const HISTORY_RENDER_LIMIT = 20;
-const TRACE_RENDER_LIMIT = 20;
+const TRACE_RENDER_LIMIT = 60;
 
 document.body.classList.add("js-ready");
 
@@ -30,7 +30,7 @@ const elements = {
   maxCapacityInput: document.getElementById("maxCapacityInput"),
   batteryLossInput: document.getElementById("batteryLossInput"),
   generateButton: document.getElementById("generateButton"),
-  loadDemoMapButton: document.getElementById("loadDemoMapButton"),
+  demoMapSelect: document.getElementById("demoMapSelect"),
   resetButton: document.getElementById("resetButton"),
   saveMapButton: document.getElementById("saveMapButton"),
   loadMapButton: document.getElementById("loadMapButton"),
@@ -114,6 +114,16 @@ function renderAlgorithmOptions() {
   });
 }
 
+function renderDemoMapOptions() {
+  sampleMapRegistry.forEach((preset) => {
+    const option = document.createElement("option");
+    option.value = preset.id;
+    option.textContent = preset.label;
+    option.title = preset.purpose;
+    elements.demoMapSelect.appendChild(option);
+  });
+}
+
 async function createSelectedAlgorithm() {
   return createAlgorithm(elements.algorithmSelect.value);
 }
@@ -126,7 +136,7 @@ function updateButtonState() {
   elements.previousStepButton.disabled = !isReady || isRunning || !simulator.canStepBack();
   elements.nextStepButton.disabled = !isReady || isRunning;
   elements.generateButton.disabled = !isReady || isRunning;
-  elements.loadDemoMapButton.disabled = !isReady || isRunning;
+  elements.demoMapSelect.disabled = !isReady || isRunning;
   elements.resetButton.disabled = !isReady;
   elements.saveMapButton.disabled = !isReady || isRunning;
   elements.loadMapButton.disabled = !isReady || isRunning;
@@ -189,11 +199,25 @@ async function bindEvents() {
     updateButtonState();
   });
 
-  elements.loadDemoMapButton.addEventListener("click", () => {
-    simulator.loadState(createAlgorithmComparisonMap10x10());
-    currentMapName = "Algorithm comparison 10x10";
-    setMapStorageStatus("Loaded the 10x10 demo map.");
+  elements.demoMapSelect.addEventListener("change", async () => {
+    const state = createSampleMap(elements.demoMapSelect.value);
+
+    if (!state) {
+      return;
+    }
+
+    const selectedPreset = getSampleMapPreset(elements.demoMapSelect.value);
+
+    if (selectedPreset?.defaultAlgorithm) {
+      elements.algorithmSelect.value = selectedPreset.defaultAlgorithm;
+      simulator.setAlgorithm(await createSelectedAlgorithm());
+    }
+
+    simulator.loadState(state);
+    currentMapName = selectedPreset?.label ?? "CleanerBot demo map";
+    setMapStorageStatus(`Loaded "${currentMapName}".`);
     updateInputsFromState(environment.getInitialState());
+    elements.demoMapSelect.value = "";
     updateButtonState();
   });
 
@@ -456,6 +480,22 @@ function createTraceEntry(entry) {
   title.textContent = `Step ${entry.order}: Visit ${entry.label}`;
   wrapper.appendChild(title);
 
+  if (entry.position) {
+    wrapper.appendChild(createTraceLine(
+      `Current position: ${entry.label} (${entry.position.x}, ${entry.position.y})`
+    ));
+  }
+
+  if (entry.goal) {
+    wrapper.appendChild(createTraceLine(
+      `Target: ${entry.goal.label} (${entry.goal.x}, ${entry.goal.y})`
+    ));
+  }
+
+  if (entry.depth !== null && entry.depth !== undefined) {
+    wrapper.appendChild(createTraceLine(`Current depth: ${entry.depth}`));
+  }
+
   if (entry.g !== null && entry.h !== null && entry.f !== null && entry.goal) {
     wrapper.appendChild(createTraceLine(`g(${entry.label}) = ${entry.g}`));
     wrapper.appendChild(createTraceLine(
@@ -490,7 +530,6 @@ function scrollToBottom(element) {
 
 function setTracePopupOpen(isOpen) {
   elements.tracePopup.hidden = !isOpen;
-  elements.traceToggleButton.textContent = isOpen ? "Close" : "Expand";
   elements.traceToggleButton.setAttribute("aria-expanded", `${isOpen}`);
 }
 
@@ -601,11 +640,13 @@ function getTraceSignature(trace, heuristicDescription, metrics = null) {
     lastEntry?.g ?? "",
     lastEntry?.h ?? "",
     lastEntry?.f ?? "",
+    lastEntry?.depth ?? "",
   ].join("|");
 }
 
 async function init() {
   renderAlgorithmOptions();
+  renderDemoMapOptions();
   updateButtonState();
 
   simulator = new Simulator({

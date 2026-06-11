@@ -445,49 +445,37 @@ h3 {
   padding: 18px;
 }
 
-.controls-config-region > h2 {
-  padding-right: 84px;
-}
-
 .trace-toggle-button {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 3;
+  width: 100%;
   min-height: 32px;
-  padding: 5px 10px;
+  padding: 8px 12px;
   font-size: 13px;
   font-weight: 700;
 }
 
-.app-shell .trace-popup {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
+.insights-panel .trace-popup {
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  border-radius: 8px 8px 0 0;
-  box-shadow: 0 12px 28px rgb(29 39 51 / 18%);
+  max-height: min(52vh, 480px);
 }
 
 .app-shell .trace-popup[hidden] {
   display: none;
 }
 
-.app-shell .trace-popup h2 {
-  flex: 0 0 auto;
-  padding-right: 70px;
-}
-
-.app-shell .trace-popup .trace-help {
+.insights-panel .trace-popup h2 {
   flex: 0 0 auto;
 }
 
-.app-shell .trace-popup .trace-log {
+.insights-panel .trace-popup .trace-help {
+  flex: 0 0 auto;
+}
+
+.insights-panel .trace-popup .trace-log {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
+  overflow: auto;
 }
 
 .panel-block,

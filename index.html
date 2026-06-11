@@ -53,6 +53,29 @@
           </div>
         </dl>
       </section>
+
+      <button
+        id="traceToggleButton"
+        class="secondary-button trace-toggle-button"
+        type="button"
+        aria-expanded="false"
+        aria-controls="tracePopup"
+      >
+        Algorithm Trace
+      </button>
+
+      <section
+        id="tracePopup"
+        class="history-panel trace-panel trace-popup"
+        aria-label="Algorithm traversal log"
+        hidden
+      >
+        <h2>Algorithm Trace</h2>
+        <p id="heuristicDescription" class="trace-help">Heuristic: not available.</p>
+        <div id="algorithmTrace" class="trace-log">
+          <p class="trace-empty">No trace yet.</p>
+        </div>
+      </section>
     </aside>
 
     <section class="map-section" aria-label="Simulation map">
@@ -86,15 +109,6 @@
       <section class="panel-block controls-block">
         <div class="controls-config-region">
           <h2>Controls</h2>
-          <button
-            id="traceToggleButton"
-            class="secondary-button trace-toggle-button"
-            type="button"
-            aria-expanded="false"
-            aria-controls="tracePopup"
-          >
-            Expand
-          </button>
 
           <label for="algorithmSelect">Algorithm</label>
           <select id="algorithmSelect"></select>
@@ -125,27 +139,18 @@
               <input id="batteryLossInput" type="number" min="0" max="100" step="0.5" value="1">
             </label>
           </div>
-
-          <section
-            id="tracePopup"
-            class="history-panel trace-panel trace-popup"
-            aria-label="Algorithm traversal log"
-            hidden
-          >
-            <h2>Algorithm Trace</h2>
-            <p id="heuristicDescription" class="trace-help">Heuristic: not available.</p>
-            <div id="algorithmTrace" class="trace-log">
-              <p class="trace-empty">No trace yet.</p>
-            </div>
-          </section>
         </div>
+
+        <label for="demoMapSelect">Load demo map</label>
+        <select id="demoMapSelect">
+          <option value="">Select a demo map...</option>
+        </select>
 
         <div class="button-grid">
           <button id="generateButton" type="button">Generate map</button>
           <button id="resetButton" type="button">Reset map</button>
           <button id="saveMapButton" class="secondary-button" type="button">Save map</button>
           <button id="loadMapButton" class="secondary-button" type="button">Load map</button>
-          <button id="loadDemoMapButton" class="secondary-button" type="button">Load demo map</button>
           <button id="previousStepButton" type="button">Previous Step</button>
           <button id="nextStepButton" type="button">Next Step</button>
           <button id="runButton" type="button">Run Algorithm</button>

@@ -116,7 +116,7 @@ export class BaseAlgorithm {
     this.metrics.heuristicDescription = description;
   }
 
-  recordNodeVisit({ position, goal = null, g = null, h = null, note = null }) {
+  recordNodeVisit({ position, goal = null, g = null, h = null, depth = null, note = null }) {
     if (!position) {
       return;
     }
@@ -135,6 +135,7 @@ export class BaseAlgorithm {
       g: hasCost ? g : null,
       h: hasHeuristic ? h : null,
       f: hasCost && hasHeuristic ? g + h : null,
+      depth: Number.isFinite(depth) ? depth : null,
       note,
     };
 
