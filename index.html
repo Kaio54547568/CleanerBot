@@ -32,19 +32,6 @@
         </div>
       </section>
 
-      <section
-        id="tracePopup"
-        class="history-panel trace-panel trace-popup"
-        aria-label="Algorithm traversal log"
-        hidden
-      >
-        <h2>Algorithm Trace</h2>
-        <p id="heuristicDescription" class="trace-help">Heuristic: not available.</p>
-        <div id="algorithmTrace" class="trace-log">
-          <p class="trace-empty">No trace yet.</p>
-        </div>
-      </section>
-
       <section class="history-panel metrics-panel" aria-label="Algorithm statistics">
         <h2>Algorithm Statistics</h2>
         <dl class="stats-list algorithm-metrics">
@@ -65,6 +52,29 @@
             <dd id="batteryConsumedValue">0</dd>
           </div>
         </dl>
+      </section>
+
+      <button
+        id="traceToggleButton"
+        class="secondary-button trace-toggle-button"
+        type="button"
+        aria-expanded="false"
+        aria-controls="tracePopup"
+      >
+        Algorithm Trace
+      </button>
+
+      <section
+        id="tracePopup"
+        class="history-panel trace-panel trace-popup"
+        aria-label="Algorithm traversal log"
+        hidden
+      >
+        <h2>Algorithm Trace</h2>
+        <p id="heuristicDescription" class="trace-help">Heuristic: not available.</p>
+        <div id="algorithmTrace" class="trace-log">
+          <p class="trace-empty">No trace yet.</p>
+        </div>
       </section>
     </aside>
 
@@ -99,15 +109,6 @@
       <section class="panel-block controls-block">
         <div class="controls-config-region">
           <h2>Controls</h2>
-          <button
-            id="traceToggleButton"
-            class="secondary-button trace-toggle-button"
-            type="button"
-            aria-expanded="false"
-            aria-controls="tracePopup"
-          >
-            Expand
-          </button>
 
           <label for="algorithmSelect">Algorithm</label>
           <select id="algorithmSelect"></select>

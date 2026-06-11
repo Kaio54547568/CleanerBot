@@ -10,7 +10,7 @@ import {
   parseMapDocument,
   sanitizeMapFilename,
 } from "./mapStorage.js";
-import { createSampleMap, sampleMapRegistry } from "./sampleMaps.js";
+import { createSampleMap, getSampleMapPreset, sampleMapRegistry } from "./sampleMaps.js";
 
 const HISTORY_RENDER_LIMIT = 20;
 const TRACE_RENDER_LIMIT = 60;
@@ -199,17 +199,21 @@ async function bindEvents() {
     updateButtonState();
   });
 
-  elements.demoMapSelect.addEventListener("change", () => {
+  elements.demoMapSelect.addEventListener("change", async () => {
     const state = createSampleMap(elements.demoMapSelect.value);
 
     if (!state) {
       return;
     }
 
+    const selectedPreset = getSampleMapPreset(elements.demoMapSelect.value);
+
+    if (selectedPreset?.defaultAlgorithm) {
+      elements.algorithmSelect.value = selectedPreset.defaultAlgorithm;
+      simulator.setAlgorithm(await createSelectedAlgorithm());
+    }
+
     simulator.loadState(state);
-    const selectedPreset = sampleMapRegistry.find(
-      (preset) => preset.id === elements.demoMapSelect.value
-    );
     currentMapName = selectedPreset?.label ?? "CleanerBot demo map";
     setMapStorageStatus(`Loaded "${currentMapName}".`);
     updateInputsFromState(environment.getInitialState());
@@ -526,7 +530,6 @@ function scrollToBottom(element) {
 
 function setTracePopupOpen(isOpen) {
   elements.tracePopup.hidden = !isOpen;
-  elements.traceToggleButton.textContent = isOpen ? "Close" : "Expand";
   elements.traceToggleButton.setAttribute("aria-expanded", `${isOpen}`);
 }
 

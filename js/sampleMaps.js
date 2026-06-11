@@ -3,37 +3,46 @@ export const sampleMapRegistry = [
     id: "equal-distance-targets",
     label: "Equal-distance targets",
     purpose: "Compare tie-breaking when two trash cells are equally close.",
+    defaultAlgorithm: "ids",
     createState: createEqualDistanceTargetsMap,
   },
   {
     id: "long-wall-detour",
     label: "Long wall detour",
     purpose: "Compare visited nodes and memory while finding a path around a long wall.",
+    defaultAlgorithm: "astar",
     createState: createLongWallDetourMap,
   },
   {
     id: "battery-reserve",
     label: "Battery reserve",
     purpose: "Show the robot returning to charge instead of collecting nearby trash.",
+    defaultAlgorithm: "bfs",
     createState: createBatteryReserveMap,
   },
   {
     id: "capacity-four-of-five-low-battery",
     label: "Capacity 4/5, charge first",
     purpose: "Show a robot carrying 4/5 trash charging before collecting the final item.",
+    defaultAlgorithm: "bfs",
     createState: createCapacityFourOfFiveLowBatteryMap,
   },
   {
     id: "capacity-and-trash-can",
     label: "Capacity and trash can",
     purpose: "Show the robot changing target when its trash capacity becomes full.",
+    defaultAlgorithm: "bfs",
     createState: createCapacityAndTrashCanMap,
   },
 ];
 
 export function createSampleMap(id) {
-  const preset = sampleMapRegistry.find((item) => item.id === id);
+  const preset = getSampleMapPreset(id);
   return preset?.createState() ?? null;
+}
+
+export function getSampleMapPreset(id) {
+  return sampleMapRegistry.find((item) => item.id === id) ?? null;
 }
 
 function createEqualDistanceTargetsMap() {
