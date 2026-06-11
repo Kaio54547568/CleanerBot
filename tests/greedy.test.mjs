@@ -176,6 +176,31 @@ test("Greedy exposes the trash position it is currently targeting", () => {
   assert.deepEqual(algorithm.getCurrentTarget(), { x: 3, y: 1 });
 });
 
+test("Greedy exposes cell scores for every walkable map cell", () => {
+  const algorithm = new GreedyAlgorithm();
+  const state = createState({
+    obstaclePositions: [{ x: 0, y: 1 }],
+    trashPositions: [{ x: 3, y: 1 }],
+  });
+
+  algorithm.nextAction(state);
+  const scores = algorithm.getCellScores(state);
+
+  assert.equal(scores.has("0,1"), false);
+  assert.deepEqual(scores.get("2,1"), {
+    distance: 1,
+    visits: 0,
+    backtrackPenalty: 0,
+    score: 1,
+  });
+  assert.deepEqual(scores.get("1,1"), {
+    distance: 2,
+    visits: 1,
+    backtrackPenalty: 0,
+    score: 5,
+  });
+});
+
 function hasAlternatingTwoCellLoop(history) {
   for (let index = 0; index <= history.length - 4; index += 1) {
     const first = history[index];

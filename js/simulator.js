@@ -182,6 +182,10 @@ export class Simulator {
     return this.algorithm?.getCurrentTarget?.() ?? null;
   }
 
+  getCellScores() {
+    return this.algorithm?.getCellScores?.(this.environment.getState()) ?? null;
+  }
+
   setSpeedMultiplier(multiplier) {
     this.speedMultiplier = multiplier;
     this.tickMs = this.baseTickMs / multiplier;
