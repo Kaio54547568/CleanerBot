@@ -32,6 +32,19 @@
         </div>
       </section>
 
+      <section
+        id="tracePopup"
+        class="history-panel trace-panel trace-popup"
+        aria-label="Algorithm traversal log"
+        hidden
+      >
+        <h2>Algorithm Trace</h2>
+        <p id="heuristicDescription" class="trace-help">Heuristic: not available.</p>
+        <div id="algorithmTrace" class="trace-log">
+          <p class="trace-empty">No trace yet.</p>
+        </div>
+      </section>
+
       <section class="history-panel metrics-panel" aria-label="Algorithm statistics">
         <h2>Algorithm Statistics</h2>
         <dl class="stats-list algorithm-metrics">
@@ -125,27 +138,18 @@
               <input id="batteryLossInput" type="number" min="0" max="100" step="0.5" value="1">
             </label>
           </div>
-
-          <section
-            id="tracePopup"
-            class="history-panel trace-panel trace-popup"
-            aria-label="Algorithm traversal log"
-            hidden
-          >
-            <h2>Algorithm Trace</h2>
-            <p id="heuristicDescription" class="trace-help">Heuristic: not available.</p>
-            <div id="algorithmTrace" class="trace-log">
-              <p class="trace-empty">No trace yet.</p>
-            </div>
-          </section>
         </div>
+
+        <label for="demoMapSelect">Load demo map</label>
+        <select id="demoMapSelect">
+          <option value="">Select a demo map...</option>
+        </select>
 
         <div class="button-grid">
           <button id="generateButton" type="button">Generate map</button>
           <button id="resetButton" type="button">Reset map</button>
           <button id="saveMapButton" class="secondary-button" type="button">Save map</button>
           <button id="loadMapButton" class="secondary-button" type="button">Load map</button>
-          <button id="loadDemoMapButton" class="secondary-button" type="button">Load demo map</button>
           <button id="previousStepButton" type="button">Previous Step</button>
           <button id="nextStepButton" type="button">Next Step</button>
           <button id="runButton" type="button">Run Algorithm</button>

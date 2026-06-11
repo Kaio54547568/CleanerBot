@@ -25,5 +25,5 @@ test("merged browser files contain no conflict markers and keep the demo-map con
     );
   });
 
-  assert.match(contents[0], /id="loadDemoMapButton"/);
+  assert.match(contents[0], /id="demoMapSelect"/);
 });

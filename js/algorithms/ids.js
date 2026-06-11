@@ -164,7 +164,7 @@ export class IDSAlgorithm extends DFSAlgorithm {
     bestDepthByNode = new Map()
   ) {
     const current = path[path.length - 1];
-    this.recordNodeVisit({ position: current });
+    this.recordNodeVisit({ position: current, depth: path.length - 1 });
     this.recordMemoryUsage(path.length + pathSet.size);
 
     const found = onFound(path);
