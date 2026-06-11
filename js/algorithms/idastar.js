@@ -118,6 +118,7 @@ export class IDAStarAlgorithm extends BFSAlgorithm {
       goal,
       g: costSoFar,
       h: heuristic,
+      threshold: bound,
     });
     this.recordMemoryUsage(path.length + bestDepthByNode.size);
 

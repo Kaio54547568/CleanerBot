@@ -201,6 +201,17 @@ test("Greedy exposes cell scores for every walkable map cell", () => {
   });
 });
 
+test("Greedy trace includes substituted score calculations for each candidate step", () => {
+  const algorithm = new GreedyAlgorithm();
+
+  algorithm.nextAction(createState());
+
+  const [entry] = algorithm.getTraceSlice();
+  assert.match(entry.note, /Action: right/);
+  assert.match(entry.note, /right->C2: 1 \+ 0\*3 \+ 0 = 1/);
+  assert.match(entry.note, /left->A2: 3 \+ 0\*3 \+ 0 = 3/);
+});
+
 function hasAlternatingTwoCellLoop(history) {
   for (let index = 0; index <= history.length - 4; index += 1) {
     const first = history[index];

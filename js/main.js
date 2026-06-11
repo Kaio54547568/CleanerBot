@@ -10,7 +10,6 @@ import {
   parseMapDocument,
   sanitizeMapFilename,
 } from "./mapStorage.js";
-import { createSampleMap, getSampleMapPreset, sampleMapRegistry } from "./sampleMaps.js";
 
 const HISTORY_RENDER_LIMIT = 20;
 const TRACE_RENDER_LIMIT = 60;
@@ -30,7 +29,6 @@ const elements = {
   maxCapacityInput: document.getElementById("maxCapacityInput"),
   batteryLossInput: document.getElementById("batteryLossInput"),
   generateButton: document.getElementById("generateButton"),
-  demoMapSelect: document.getElementById("demoMapSelect"),
   resetButton: document.getElementById("resetButton"),
   saveMapButton: document.getElementById("saveMapButton"),
   loadMapButton: document.getElementById("loadMapButton"),
@@ -114,16 +112,6 @@ function renderAlgorithmOptions() {
   });
 }
 
-function renderDemoMapOptions() {
-  sampleMapRegistry.forEach((preset) => {
-    const option = document.createElement("option");
-    option.value = preset.id;
-    option.textContent = preset.label;
-    option.title = preset.purpose;
-    elements.demoMapSelect.appendChild(option);
-  });
-}
-
 async function createSelectedAlgorithm() {
   return createAlgorithm(elements.algorithmSelect.value);
 }
@@ -136,7 +124,6 @@ function updateButtonState() {
   elements.previousStepButton.disabled = !isReady || isRunning || !simulator.canStepBack();
   elements.nextStepButton.disabled = !isReady || isRunning;
   elements.generateButton.disabled = !isReady || isRunning;
-  elements.demoMapSelect.disabled = !isReady || isRunning;
   elements.resetButton.disabled = !isReady;
   elements.saveMapButton.disabled = !isReady || isRunning;
   elements.loadMapButton.disabled = !isReady || isRunning;
@@ -204,28 +191,6 @@ async function bindEvents() {
     updateButtonState();
   });
 
-  elements.demoMapSelect.addEventListener("change", async () => {
-    const state = createSampleMap(elements.demoMapSelect.value);
-
-    if (!state) {
-      return;
-    }
-
-    const selectedPreset = getSampleMapPreset(elements.demoMapSelect.value);
-
-    if (selectedPreset?.defaultAlgorithm) {
-      elements.algorithmSelect.value = selectedPreset.defaultAlgorithm;
-      simulator.setAlgorithm(await createSelectedAlgorithm());
-    }
-
-    simulator.loadState(state);
-    currentMapName = selectedPreset?.label ?? "CleanerBot demo map";
-    setMapStorageStatus(`Loaded "${currentMapName}".`);
-    updateInputsFromState(environment.getInitialState());
-    elements.demoMapSelect.value = "";
-    updateButtonState();
-  });
-
   elements.resetButton.addEventListener("click", () => {
     simulator.reset();
     updateInputsFromState(environment.getInitialState());
@@ -251,7 +216,11 @@ async function bindEvents() {
       return;
     }
 
-    const mapDocument = createMapDocument(mapName, environment.getInitialState());
+    const mapDocument = createMapDocument(
+      mapName,
+      environment.getState(),
+      elements.algorithmSelect.value
+    );
     downloadMapDocument(mapDocument);
     currentMapName = mapDocument.name;
     elements.saveMapDialog.close();
@@ -276,6 +245,12 @@ async function bindEvents() {
       }
 
       const loadedMap = parseMapDocument(await file.text());
+
+      if (loadedMap.algorithmId && hasAlgorithmOption(loadedMap.algorithmId)) {
+        elements.algorithmSelect.value = loadedMap.algorithmId;
+        simulator.setAlgorithm(await createSelectedAlgorithm());
+      }
+
       simulator.loadState(loadedMap.state);
       currentMapName = loadedMap.name;
       updateInputsFromState(environment.getInitialState());
@@ -506,6 +481,10 @@ function createTraceEntry(entry) {
     wrapper.appendChild(createTraceLine(`Current depth: ${entry.depth}`));
   }
 
+  if (entry.threshold !== null && entry.threshold !== undefined) {
+    wrapper.appendChild(createTraceLine(`Threshold: ${entry.threshold}`));
+  }
+
   if (entry.g !== null && entry.h !== null && entry.f !== null && entry.goal) {
     wrapper.appendChild(createTraceLine(`g(${entry.label}) = ${entry.g}`));
     wrapper.appendChild(createTraceLine(
@@ -571,6 +550,12 @@ function downloadMapDocument(mapDocument) {
 function setMapStorageStatus(message, isError = false) {
   elements.mapStorageStatus.textContent = message;
   elements.mapStorageStatus.classList.toggle("error", isError);
+}
+
+function hasAlgorithmOption(algorithmId) {
+  return [...elements.algorithmSelect.options].some(
+    (option) => option.value === algorithmId
+  );
 }
 
 function setActiveSpeedButton(activeButton) {
@@ -651,12 +636,12 @@ function getTraceSignature(trace, heuristicDescription, metrics = null) {
     lastEntry?.h ?? "",
     lastEntry?.f ?? "",
     lastEntry?.depth ?? "",
+    lastEntry?.threshold ?? "",
   ].join("|");
 }
 
 async function init() {
   renderAlgorithmOptions();
-  renderDemoMapOptions();
   updateButtonState();
 
   simulator = new Simulator({

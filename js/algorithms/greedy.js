@@ -18,6 +18,7 @@ export class GreedyAlgorithm extends BaseAlgorithm {
     this.visitCounts = new Map();
     this.currentPosition = null;
     this.previousPosition = null;
+    this.lastScoreBreakdown = [];
     this.setHeuristicDescription(
       `Greedy score = Manhattan distance + visits * ${VISIT_PENALTY} + backtrack penalty ${BACKTRACK_PENALTY}.`
     );
@@ -26,27 +27,31 @@ export class GreedyAlgorithm extends BaseAlgorithm {
   computeNextAction(state) {
     const { robot, map } = state;
     this.rememberPosition(robot);
-    this.recordNodeVisit({ position: state.robot });
     this.recordMemoryUsage(1);
     this.setCurrentTarget(null);
 
     if (this.isAtTrashCan(state) && robot.capacity > 0) {
       this.setCurrentTarget(map.trashCan);
-      return this.hasEnoughBatteryForTarget(state, map.trashCan)
+      const action = this.hasEnoughBatteryForTarget(state, map.trashCan)
         ? ACTIONS.LET_TRASH_OUT
         : this.getChargingAction(state);
+      this.recordGreedyDecision(state, this.getCurrentTarget(), action);
+      return action;
     }
 
     if (this.isAtChargingStation(state) && this.shouldCharge(state)) {
       this.setCurrentTarget(map.chargingStation);
+      this.recordGreedyDecision(state, map.chargingStation, ACTIONS.CHARGE);
       return ACTIONS.CHARGE;
     }
 
     if (this.hasTrashAtRobot(state) && robot.capacity < robot.maxCapacity) {
       this.setCurrentTarget(robot);
-      return this.hasEnoughBatteryForTarget(state, robot)
+      const action = this.hasEnoughBatteryForTarget(state, robot)
         ? ACTIONS.SUCK_TRASH
         : this.getChargingAction(state);
+      this.recordGreedyDecision(state, this.getCurrentTarget(), action);
+      return action;
     }
 
     let target = this.chooseWorkTarget(state);
@@ -67,24 +72,33 @@ export class GreedyAlgorithm extends BaseAlgorithm {
       !samePosition(target, map.chargingStation) &&
       !this.hasEnoughBatteryForTarget(state, target)
     ) {
-      return this.getChargingAction(state);
+      const action = this.getChargingAction(state);
+      this.recordGreedyDecision(state, this.getCurrentTarget(), action);
+      return action;
     }
 
     if (!target) {
-      return this.getChargingAction(state);
+      const action = this.getChargingAction(state);
+      this.recordGreedyDecision(state, this.getCurrentTarget(), action);
+      return action;
     }
 
     this.setCurrentTarget(target);
 
     if (samePosition(robot, target)) {
-      return this.getActionAtTarget(state, target);
+      const action = this.getActionAtTarget(state, target);
+      this.recordGreedyDecision(state, target, action);
+      return action;
     }
 
     if (this.getBatteryLoss(state) > robot.battery && !this.isAtChargingStation(state)) {
+      this.recordGreedyDecision(state, target, ACTIONS.STAY);
       return ACTIONS.STAY;
     }
 
-    return this.chooseMoveTowardTarget(state, target);
+    const action = this.chooseMoveTowardTarget(state, target);
+    this.recordGreedyDecision(state, target, action);
+    return action;
   }
 
   getChargingAction(state) {
@@ -158,6 +172,8 @@ export class GreedyAlgorithm extends BaseAlgorithm {
   }
 
   chooseMoveTowardTarget(state, target) {
+    this.lastScoreBreakdown = [];
+
     if (samePosition(target, state.map.chargingStation)) {
       return this.chooseShortestPathMoveToTarget(state, target);
     }
@@ -189,6 +205,15 @@ export class GreedyAlgorithm extends BaseAlgorithm {
         a.index - b.index
       );
     });
+
+    this.lastScoreBreakdown = candidates.map((candidate) => ({
+      action: candidate.action,
+      position: { ...candidate.position },
+      distance: candidate.distance,
+      visits: candidate.visits,
+      backtrackPenalty: candidate.backtrackPenalty,
+      score: candidate.score,
+    }));
 
     return candidates[0].action;
   }
@@ -233,6 +258,24 @@ export class GreedyAlgorithm extends BaseAlgorithm {
       backtrackPenalty,
       score: distance + visits * VISIT_PENALTY + backtrackPenalty,
     };
+  }
+
+  recordGreedyDecision(state, target, action) {
+    const scoreDetails = this.lastScoreBreakdown
+      .map((candidate) => {
+        const label = this.formatCoordinateLabel(candidate.position);
+        return `${candidate.action}->${label}: ${formatScoreNumber(candidate.distance)} + ${formatScoreNumber(candidate.visits)}*${VISIT_PENALTY} + ${formatScoreNumber(candidate.backtrackPenalty)} = ${formatScoreNumber(candidate.score)}`;
+      })
+      .join("; ");
+    const note = scoreDetails
+      ? `Action: ${action}. Scores: ${scoreDetails}.`
+      : `Action: ${action}.`;
+
+    this.recordNodeVisit({
+      position: state.robot,
+      goal: target,
+      note,
+    });
   }
 
   chooseShortestPathMoveToTarget(state, target) {
@@ -498,4 +541,8 @@ export class GreedyAlgorithm extends BaseAlgorithm {
 
     return null;
   }
+}
+
+function formatScoreNumber(value) {
+  return Number.isInteger(value) ? `${value}` : `${Number(value.toFixed(2))}`;
 }

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { AStarAlgorithm } from "../js/algorithms/astar.js";
+import { IDAStarAlgorithm } from "../js/algorithms/idastar.js";
 import { IDSAlgorithm } from "../js/algorithms/ids.js";
 
 test("A* trace records current position and target metadata", () => {
@@ -22,6 +23,17 @@ test("IDS trace records current search depth", () => {
   const trace = algorithm.getTraceSlice();
   assert.ok(trace.some((entry) => entry.depth === 0));
   assert.ok(trace.some((entry) => entry.depth === 1));
+});
+
+test("IDA* trace records the current threshold", () => {
+  const algorithm = new IDAStarAlgorithm();
+
+  algorithm.findPath(createOpenState(), { x: 0, y: 0 }, { x: 2, y: 0 });
+
+  const trace = algorithm.getTraceSlice();
+  assert.ok(trace.length > 0);
+  assert.ok(trace.every((entry) => Number.isFinite(entry.threshold)));
+  assert.equal(trace[0].threshold, 2);
 });
 
 function createOpenState() {

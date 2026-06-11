@@ -9,11 +9,11 @@ import {
 
 const SAMPLE_STATE = {
   robot: {
-    battery: 100,
-    capacity: 0,
+    battery: 73,
+    capacity: 2,
     maxCapacity: 7,
-    x: 1,
-    y: 2,
+    x: 2,
+    y: 3,
   },
   map: {
     grid_size_x: 6,
@@ -31,21 +31,31 @@ const SAMPLE_STATE = {
     batteryLoss: 1.5,
     actionCost: 1,
   },
-  steps: 0,
+  steps: 12,
   latestAction: null,
   latestLog: "Map ready.",
 };
 
 test("map document round-trip preserves the clean map and settings", () => {
-  const document = createMapDocument("Demo map", SAMPLE_STATE);
+  const document = createMapDocument("Demo map", SAMPLE_STATE, "greedy");
   const loaded = parseMapDocument(JSON.stringify(document));
 
   assert.equal(loaded.name, "Demo map");
+  assert.equal(document.steps, undefined);
+  assert.equal(document.algorithm, "greedy");
+  assert.deepEqual(document.robot, {
+    battery: 73,
+    capacity: 2,
+    maxCapacity: 7,
+    x: 2,
+    y: 3,
+  });
+  assert.equal(loaded.algorithmId, "greedy");
   assert.deepEqual(loaded.state.map, SAMPLE_STATE.map);
-  assert.equal(loaded.state.robot.battery, 100);
-  assert.equal(loaded.state.robot.capacity, 0);
-  assert.equal(loaded.state.robot.x, SAMPLE_STATE.map.start_x);
-  assert.equal(loaded.state.robot.y, SAMPLE_STATE.map.start_y);
+  assert.equal(loaded.state.robot.battery, 73);
+  assert.equal(loaded.state.robot.capacity, 2);
+  assert.equal(loaded.state.robot.x, 2);
+  assert.equal(loaded.state.robot.y, 3);
   assert.equal(loaded.state.robot.maxCapacity, 7);
   assert.equal(loaded.state.config.batteryLoss, 1.5);
   assert.equal(loaded.state.steps, 0);

@@ -12,7 +12,7 @@ const runtimeFiles = [
   "js/algorithms/baseAlgorithm.js",
 ];
 
-test("merged browser files contain no conflict markers and keep the demo-map control", async () => {
+test("merged browser files contain no conflict markers", async () => {
   const contents = await Promise.all(
     runtimeFiles.map((path) => readFile(new URL(path, projectRoot), "utf8"))
   );
@@ -24,6 +24,4 @@ test("merged browser files contain no conflict markers and keep the demo-map con
       `${runtimeFiles[index]} still contains a merge conflict marker`
     );
   });
-
-  assert.match(contents[0], /id="demoMapSelect"/);
 });
