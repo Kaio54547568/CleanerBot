@@ -37,9 +37,9 @@ export class Renderer {
     this.statusBadgeElement = statusBadgeElement;
   }
 
-  render(state, nextAction = null, currentTarget = null) {
+  render(state, nextAction = null, currentTarget = null, cellScores = null) {
     this.renderCoordinateLabels(state);
-    this.renderGrid(state, currentTarget);
+    this.renderGrid(state, currentTarget, cellScores);
     this.renderStats(state, nextAction);
   }
 
@@ -71,7 +71,7 @@ export class Renderer {
     }
   }
 
-  renderGrid(state, currentTarget = null) {
+  renderGrid(state, currentTarget = null, cellScores = null) {
     const { robot, map } = state;
     this.gridElement.innerHTML = "";
     this.gridElement.style.gridTemplateColumns = `repeat(${map.grid_size_x}, minmax(0, 1fr))`;
@@ -126,6 +126,14 @@ export class Renderer {
         if (iconInfo) {
           cell.classList.add("has-icon");
           cell.appendChild(createIconElement(iconInfo));
+        }
+
+        const scoreInfo = hasObstacle ? null : getCellScore(cellScores, position);
+
+        if (scoreInfo) {
+          cell.classList.add("has-score");
+          cell.title += ` - Greedy score: ${formatNumber(scoreInfo.score)}`;
+          cell.appendChild(createScoreElement(scoreInfo));
         }
 
         this.gridElement.appendChild(cell);
@@ -187,6 +195,33 @@ function createIconElement({ src, alt }) {
   icon.alt = alt;
   icon.draggable = false;
   return icon;
+}
+
+function createScoreElement(scoreInfo) {
+  const score = document.createElement("span");
+  score.className = "cell-score";
+  score.textContent = formatNumber(scoreInfo.score);
+  score.title = [
+    `score=${formatNumber(scoreInfo.score)}`,
+    `distance=${formatNumber(scoreInfo.distance)}`,
+    `visits=${formatNumber(scoreInfo.visits)}`,
+    `backtrack=${formatNumber(scoreInfo.backtrackPenalty)}`,
+  ].join(", ");
+  return score;
+}
+
+function getCellScore(cellScores, position) {
+  if (!cellScores) {
+    return null;
+  }
+
+  const key = `${position.x},${position.y}`;
+
+  if (typeof cellScores.get === "function") {
+    return cellScores.get(key) ?? null;
+  }
+
+  return cellScores[key] ?? null;
 }
 
 function setText(element, value) {

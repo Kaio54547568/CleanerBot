@@ -168,21 +168,12 @@ export class GreedyAlgorithm extends BaseAlgorithm {
         this.canMoveAndKeepChargingReserve(state, candidate.position)
       )
       .map((candidate, index) => {
-        const distance = this.manhattanDistance(candidate.position, target);
-        const visits = this.getVisitCount(candidate.position);
-        const backtrackPenalty =
-          this.previousPosition &&
-          samePosition(candidate.position, this.previousPosition) &&
-          !samePosition(candidate.position, target)
-            ? BACKTRACK_PENALTY
-            : 0;
+        const scoreInfo = this.getGreedyScore(candidate.position, target);
 
         return {
           ...candidate,
           index,
-          distance,
-          visits,
-          score: distance + visits * VISIT_PENALTY + backtrackPenalty,
+          ...scoreInfo,
         };
       });
 
@@ -200,6 +191,48 @@ export class GreedyAlgorithm extends BaseAlgorithm {
     });
 
     return candidates[0].action;
+  }
+
+  getCellScores(state) {
+    const target = this.getCurrentTarget() ?? this.chooseWorkTarget(state);
+
+    if (!target) {
+      return new Map();
+    }
+
+    const scores = new Map();
+
+    for (let y = 0; y < state.map.grid_size_y; y += 1) {
+      for (let x = 0; x < state.map.grid_size_x; x += 1) {
+        const position = { x, y };
+
+        if (!this.canMoveTo(state, position)) {
+          continue;
+        }
+
+        scores.set(this.positionKey(position), this.getGreedyScore(position, target));
+      }
+    }
+
+    return scores;
+  }
+
+  getGreedyScore(position, target) {
+    const distance = this.manhattanDistance(position, target);
+    const visits = this.getVisitCount(position);
+    const backtrackPenalty =
+      this.previousPosition &&
+      samePosition(position, this.previousPosition) &&
+      !samePosition(position, target)
+        ? BACKTRACK_PENALTY
+        : 0;
+
+    return {
+      distance,
+      visits,
+      backtrackPenalty,
+      score: distance + visits * VISIT_PENALTY + backtrackPenalty,
+    };
   }
 
   chooseShortestPathMoveToTarget(state, target) {

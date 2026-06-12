@@ -164,7 +164,12 @@ function syncConfigFromInputs() {
 
 function handleStateChange(state) {
   const nextAction = simulator && !state.map.done ? simulator.peekNextAction() : null;
-  renderer.render(state, nextAction, simulator?.getCurrentTarget());
+  renderer.render(
+    state,
+    nextAction,
+    simulator?.getCurrentTarget(),
+    simulator?.getCellScores()
+  );
   renderPositionHistory();
   renderAlgorithmMetrics();
   renderAlgorithmTrace();
@@ -328,7 +333,12 @@ async function bindEvents() {
     simulator.clearHistory();
     simulator.resetPositionHistory(nextState, null);
     const nextAction = simulator.peekNextAction();
-    renderer.render(nextState, nextAction, simulator.getCurrentTarget());
+    renderer.render(
+      nextState,
+      nextAction,
+      simulator.getCurrentTarget(),
+      simulator.getCellScores()
+    );
     renderPositionHistory();
     renderAlgorithmMetrics();
     renderAlgorithmTrace();

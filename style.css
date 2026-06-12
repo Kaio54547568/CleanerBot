@@ -202,6 +202,26 @@ h3 {
   pointer-events: none;
 }
 
+.cell-score {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  overflow: hidden;
+  color: #1d2733;
+  font-size: clamp(18px, 2.1vw, 34px);
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / 86%),
+    0 0 4px rgb(255 255 255 / 92%);
+  pointer-events: none;
+}
+
 .cell:hover {
   outline: 2px solid var(--primary);
   outline-offset: -2px;
