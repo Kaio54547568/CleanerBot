@@ -1,0 +1,40 @@
+{
+  "format": "cleanerbot-map",
+  "version": 1,
+  "name": "Demo - Capacity 4/5 Charge First",
+  "algorithm": "bfs",
+  "map": {
+    "width": 10,
+    "height": 10,
+    "start": {
+      "x": 4,
+      "y": 4
+    },
+    "trash": [
+      {
+        "x": 5,
+        "y": 4
+      }
+    ],
+    "obstacles": [],
+    "chargingStation": {
+      "x": 0,
+      "y": 4
+    },
+    "trashCan": {
+      "x": 4,
+      "y": 0
+    }
+  },
+  "robot": {
+    "x": 4,
+    "y": 4,
+    "battery": 20,
+    "capacity": 4,
+    "maxCapacity": 5
+  },
+  "settings": {
+    "maxCapacity": 5,
+    "batteryLoss": 5
+  }
+}

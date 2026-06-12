@@ -1,0 +1,56 @@
+{
+  "format": "cleanerbot-map",
+  "version": 1,
+  "name": "rule1",
+  "algorithm": "bfs",
+  "map": {
+    "width": 5,
+    "height": 5,
+    "start": {
+      "x": 0,
+      "y": 0
+    },
+    "trash": [],
+    "obstacles": [
+      {
+        "x": 1,
+        "y": 1
+      },
+      {
+        "x": 2,
+        "y": 1
+      },
+      {
+        "x": 1,
+        "y": 2
+      },
+      {
+        "x": 1,
+        "y": 3
+      },
+      {
+        "x": 3,
+        "y": 1
+      }
+    ],
+    "chargingStation": {
+      "x": 0,
+      "y": 0
+    },
+    "trashCan": {
+      "x": 4,
+      "y": 4
+    }
+  },
+  "robot": {
+    "x": 0,
+    "y": 0,
+    "battery": 50,
+    "capacity": 0,
+    "maxCapacity": 5
+  },
+  "settings": {
+    "maxCapacity": 5,
+    "batteryLoss": 3
+  }
+}
